@@ -25,12 +25,11 @@
 		{ "binding": "DB", "database_name": "lfs-locks", "database_id": "00000000-0000-0000-0000-000000000000" }
 	],
 	"vars": {
-		"ACCOUNT_ID": "",
-		"BUCKET_NAME": "lfs-objects",
 		// Listed here only so cf-typegen generates the types.
-		// Override with `wrangler secret put AUTH_TOKEN` etc. — never commit real values.
-		"AUTH_TOKEN": "",
-		"R2_ACCESS_KEY_ID": "",
-		"R2_SECRET_ACCESS_KEY": ""
+		// Override with `wrangler secret put S3_ACCESS_KEY_ID` etc. — never commit real values.
+		"S3_ENDPOINT": "",
+		"S3_BUCKET_NAME": "lfs-objects",
+		"S3_ACCESS_KEY_ID": "",
+		"S3_SECRET_ACCESS_KEY": ""
 	}
 }

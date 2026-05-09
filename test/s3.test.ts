@@ -1,11 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import { presignDownload, presignUpload } from "../src/r2";
+import { presignDownload, presignUpload } from "../src/s3";
 
 const ENV = {
-  ACCOUNT_ID:           "test-account",
-  R2_ACCESS_KEY_ID:     "test-key-id",
-  R2_SECRET_ACCESS_KEY: "test-secret",
-  BUCKET_NAME:          "lfs-objects",
+  S3_ENDPOINT:          "https://test-account.r2.cloudflarestorage.com",
+  S3_ACCESS_KEY_ID:     "test-key-id",
+  S3_SECRET_ACCESS_KEY: "test-secret",
+  S3_BUCKET_NAME:          "lfs-objects",
 };
 
 const KEY = "alice/repo/abc123def456";

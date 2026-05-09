@@ -58,16 +58,15 @@ Add to `wrangler.jsonc`:
     { "binding": "DB", "database_name": "lfs-locks", "database_id": "<id>" }
   ],
   "vars": {
-    "ACCOUNT_ID": "",
-    "R2_ACCESS_KEY_ID": "",
-    "R2_SECRET_ACCESS_KEY": "",
-    "BUCKET_NAME": "lfs-objects",
-    "AUTH_TOKEN": ""        // shared secret for Basic Auth
+    "S3_ENDPOINT": "",       // e.g. https://<account>.r2.cloudflarestorage.com
+    "S3_BUCKET_NAME": "lfs-objects",
+    "S3_ACCESS_KEY_ID": "",
+    "S3_SECRET_ACCESS_KEY": ""
   }
 }
 ```
 
-Secrets (`AUTH_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) should be
+Secrets (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) should be
 set with `wrangler secret put` rather than committed to vars.
 
 Run `bun run cf-typegen` after each binding change.
@@ -88,7 +87,7 @@ binding cannot generate presigned URLs)
 
 ## Data Model
 
-### D1 Schema (`sql/schema.d1.sql`)
+### D1 Schema (`sql/locks.sql`)
 
 ```sql
 CREATE TABLE IF NOT EXISTS locks (
@@ -117,13 +116,14 @@ const id = Array.from(crypto.getRandomValues(new Uint8Array(20)))
 ```
 src/
   index.ts        -- Hono app, route wiring
-  auth.ts         -- Basic Auth middleware
+  auth.ts         -- GitHub auth middleware (Octokit)
   batch.ts        -- POST /objects/batch handler
   verify.ts       -- POST /objects/verify handler
   locks.ts        -- all /locks handlers
-  schema.zod.ts   -- Zod schemas
-  r2.ts           -- S3Client factory + presign helpers
-  types.ts        -- CloudflareBindings interface (or use generated file)
+  api-schema.ts   -- Zod schemas
+  s3.ts           -- S3Client factory + presign helpers
+sql/
+  locks.sql       -- D1 schema
 ```
 
 ---
@@ -133,10 +133,10 @@ src/
 ### Phase 1 — Infrastructure
 
 1. **`wrangler.jsonc`** — add R2 and D1 bindings; run `cf-typegen`.
-2. **`sql/schema.d1.sql`** — create and apply with `wrangler d1 execute lfs-locks --file sql/schema.d1.sql`.
-3. **`src/r2.ts`** — S3Client factory (identical to reference, keyed from env).
-4. **`src/schema.zod.ts`** — Zod schemas for all request/response shapes (see below).
-5. **`src/auth.ts`** — Hono middleware for Basic Auth.
+2. **`sql/locks.sql`** — create and apply with `wrangler d1 execute lfs-locks --file sql/locks.sql`.
+3. **`src/s3.ts`** — S3Client factory (keyed from env).
+4. **`src/api-schema.ts`** — Zod schemas for all request/response shapes (see below).
+5. **`src/auth.ts`** — Hono middleware for GitHub auth (Octokit).
 
 ### Phase 2 — Batch API
 
@@ -299,8 +299,7 @@ The SSH server returns JSON:
 The client forwards those headers verbatim to every Batch API request.
 Our Worker must therefore accept any `Authorization` scheme the SSH server
 issues — not just `Basic`. The middleware should treat any credential that
-validates against `env.AUTH_TOKEN` as authorised, regardless of the scheme
-prefix (`Basic`, `RemoteAuth`, `Bearer`, etc.).
+validates against GitHub as authorised, regardless of the scheme prefix (`Basic`, `RemoteAuth`, `Bearer`, etc.).
 
 **2. Git Credentials (HTTP Basic)**
 
@@ -328,33 +327,22 @@ Worker.
 3. Strip the scheme prefix; extract the credential token.
    - "Basic <b64>" → base64-decode → split on first ":" → take password field.
    - Any other scheme → treat the raw token as the credential.
-4. Constant-time compare against env.AUTH_TOKEN
-   (crypto.subtle.timingSafeEqual on TextEncoder output).
-5. On mismatch → 401 (same response as step 2).
-6. On success → stash username in c.set("user", username) for lock owner tracking.
+4. Validate via GitHub API (Octokit): call getAuthenticated() + repos.get().
+5. On failure → 401 (same response as step 2).
+6. On success → stash GitHub username in c.set("user", login) for lock owner tracking.
 ```
 
 On a 401, the `LFS-Authenticate` response header is used instead of the
 standard `WWW-Authenticate` so browsers do not pop a password prompt.
 
-### Token expiry
-
-The spec supports expiring tokens via `expires_in` (seconds) or `expires_at`
-(RFC 3339 string) hints returned alongside Batch API actions. If `env.AUTH_TOKEN`
-is a long-lived shared secret, expiry is not needed. If tokens are short-lived
-(e.g. issued by a separate auth service), include `expires_in` on every action
-object in the Batch response so the client knows to re-authenticate before
-the token lapses.
-
 ### Scope
 
-For a single-tenant / personal server, one shared `AUTH_TOKEN` secret is
-sufficient. Multi-tenant would need a D1 `users` table or an external IdP;
-that is out of scope for now.
+Authentication delegates to GitHub — any token with read access to the
+repo is authorised. No server-side secret required.
 
 ---
 
-## Zod Schemas (`src/schema.zod.ts`)
+## Zod Schemas (`src/api-schema.ts`)
 
 ```typescript
 // Reuse from reference implementation with corrections:
@@ -414,15 +402,15 @@ Set `Content-Type: application/vnd.git-lfs+json` on all responses in a global
 ## Implementation Steps
 
 ```
-1. wrangler.jsonc   -- add bindings
-2. sql/schema.d1.sql   -- create D1 table
-3. src/r2.ts        -- S3 client factory
-4. src/schema.zod.ts  -- Zod types
-5. src/auth.ts      -- Basic Auth middleware
-6. src/batch.ts     -- Batch API (upload + download)
-7. src/verify.ts    -- Verify endpoint
-8. src/locks.ts     -- All four lock endpoints
-9. src/index.ts     -- Wire everything together
+1. wrangler.jsonc      -- add bindings
+2. sql/locks.sql       -- create D1 table
+3. src/s3.ts           -- S3 client factory
+4. src/api-schema.ts   -- Zod types
+5. src/auth.ts         -- GitHub auth middleware
+6. src/batch.ts        -- Batch API (upload + download)
+7. src/verify.ts       -- Verify endpoint
+8. src/locks.ts        -- All four lock endpoints
+9. src/index.ts        -- Wire everything together
 ```
 
 Each step is independently testable with `bun run dev` + `bun test`.
@@ -486,7 +474,7 @@ export const LFS   = {
   "Content-Type": "application/vnd.git-lfs+json",
 };
 
-const SCHEMA = readFileSync("sql/schema.d1.sql", "utf8");
+const SCHEMA = readFileSync("sql/locks.sql", "utf8");
 
 export async function createMiniflare() {
   const mf = new Miniflare({
@@ -497,11 +485,10 @@ export async function createMiniflare() {
     r2Buckets:    ["LFS_BUCKET"],
     d1Databases:  ["DB"],
     bindings: {
-      AUTH_TOKEN:          TEST_TOKEN,
-      ACCOUNT_ID:          "test-account",
-      R2_ACCESS_KEY_ID:    "test-key-id",
-      R2_SECRET_ACCESS_KEY: "test-secret",
-      BUCKET_NAME:         "lfs-objects",
+      S3_ENDPOINT:          "https://test-account.r2.cloudflarestorage.com",
+      S3_ACCESS_KEY_ID:     "test-key-id",
+      S3_SECRET_ACCESS_KEY: "test-secret",
+      S3_BUCKET_NAME:       "lfs-objects",
     },
   });
 

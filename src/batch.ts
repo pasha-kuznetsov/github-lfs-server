@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { batchRequestSchema } from "./api-schema";
-import { presignUpload, presignDownload } from "./r2";
+import { presignUpload, presignDownload } from "./s3";
 
 type AppEnv = {
   Bindings: CloudflareBindings;
@@ -40,12 +40,21 @@ export async function batchHandler(c: Context<AppEnv>): Promise<Response> {
           },
         };
       } else {
+        // assert(operation === "download");
         const exists = await c.env.LFS_BUCKET.head(key);
         if (!exists) {
-          return { oid: obj.oid, size: obj.size, error: { code: 404, message: "Object not found" } };
+          return {
+            oid: obj.oid,
+            size: obj.size,
+            error: { code: 404, message: "Object not found" },
+          };
         }
         const downloadHref = await presignDownload(c.env, key);
-        return { oid: obj.oid, size: obj.size, actions: { download: { href: downloadHref } } };
+        return {
+          oid: obj.oid,
+          size: obj.size,
+          actions: { download: { href: downloadHref } },
+        };
       }
     }),
   );

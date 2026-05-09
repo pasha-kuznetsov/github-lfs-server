@@ -7,14 +7,15 @@ type AppEnv = { Bindings: CloudflareBindings; Variables: { user: string } };
 function makeEnv(existingKeys: string[] = []) {
   const keys = new Set(existingKeys);
   return {
-    AUTH_TOKEN: "token",
     LFS_BUCKET: {
-      async head(key: string) { return keys.has(key) ? { key } : null; },
+      async head(key: string) {
+        return keys.has(key) ? { key } : null;
+      },
     },
-    ACCOUNT_ID: "test-account",
-    R2_ACCESS_KEY_ID: "test-key",
-    R2_SECRET_ACCESS_KEY: "test-secret",
-    BUCKET_NAME: "lfs-objects",
+    S3_ENDPOINT: "https://test-account.r2.cloudflarestorage.com",
+    S3_ACCESS_KEY_ID: "test-key",
+    S3_SECRET_ACCESS_KEY: "test-secret",
+    S3_BUCKET_NAME: "lfs-objects",
   } as any;
 }
 
@@ -25,7 +26,7 @@ function makeApp() {
 }
 
 const LFS_HEADERS = {
-  "Accept": "application/vnd.git-lfs+json",
+  Accept: "application/vnd.git-lfs+json",
   "Content-Type": "application/vnd.git-lfs+json",
 };
 
@@ -42,12 +43,15 @@ describe("batch upload", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "upload", objects: [{ oid: "abc123", size: 10 }] }),
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
       },
       makeEnv(),
     );
     expect(res.status).toBe(200);
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.transfer).toBe("basic");
     expect(body.hash_algo).toBe("sha256");
     expect(body.objects[0].actions.upload.href).toMatch(/^https:\/\//);
@@ -61,11 +65,14 @@ describe("batch upload", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "upload", objects: [{ oid: "abc123", size: 10 }] }),
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
       },
       makeEnv(["alice/repo/abc123"]),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(body.objects[0]).not.toHaveProperty("actions");
     expect(body.objects[0]).not.toHaveProperty("error");
@@ -80,11 +87,14 @@ describe("batch upload", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "upload", objects: [{ oid: "abc123", size: 10 }] }),
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
       },
       makeEnv(["alice/repo/abc123"]),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.objects[0]).not.toHaveProperty("actions");
   });
 
@@ -94,11 +104,14 @@ describe("batch upload", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "upload", objects: [{ oid: "deadbeef", size: 1 }] }),
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "deadbeef", size: 1 }],
+        }),
       },
       makeEnv(),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.objects[0].actions.verify.href).toBe(
       "http://worker/alice/repo/objects/verify",
     );
@@ -120,8 +133,8 @@ describe("batch upload", () => {
       },
       makeEnv(["alice/repo/existing"]),
     );
-    const body = await res.json() as any;
-    expect(body.objects[0].actions).toBeDefined();     // new-one: has actions
+    const body = (await res.json()) as any;
+    expect(body.objects[0].actions).toBeDefined(); // new-one: has actions
     expect(body.objects[1]).not.toHaveProperty("actions"); // existing: no actions
   });
 });
@@ -137,12 +150,15 @@ describe("batch download", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "download", objects: [{ oid: "abc123", size: 10 }] }),
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
       },
       makeEnv(["alice/repo/abc123"]),
     );
     expect(res.status).toBe(200);
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.objects[0].actions.download.href).toMatch(/^https:\/\//);
     expect(body.objects[0]).not.toHaveProperty("error");
   });
@@ -153,11 +169,14 @@ describe("batch download", () => {
       {
         method: "POST",
         headers: LFS_HEADERS,
-        body: JSON.stringify({ operation: "download", objects: [{ oid: "missing", size: 10 }] }),
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "missing", size: 10 }],
+        }),
       },
       makeEnv(),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(body.objects[0].error.code).toBe(404);
     expect(body.objects[0]).not.toHaveProperty("actions");
@@ -173,7 +192,7 @@ describe("batch download", () => {
       },
       makeEnv(),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(body.objects).toHaveLength(0);
   });
@@ -194,7 +213,7 @@ describe("batch download", () => {
       },
       makeEnv(["alice/repo/present"]),
     );
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.objects[0].actions.download).toBeDefined();
     expect(body.objects[1].error.code).toBe(404);
   });

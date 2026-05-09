@@ -1,8 +1,18 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "bun:test";
 import { Miniflare } from "miniflare";
 import { readFileSync } from "fs";
 
-const SCHEMA = readFileSync(new URL("../sql/locks.sql", import.meta.url), "utf8");
+const SCHEMA = readFileSync(
+  new URL("../sql/locks.sql", import.meta.url),
+  "utf8",
+);
 
 // Minimal worker that exposes each binding via simple HTTP routes.
 // Routes: /r2/<op>?key=K, /d1/<op>, /env
@@ -71,11 +81,10 @@ export default {
 
     if (ns === "env") {
       return Response.json({
-        AUTH_TOKEN:          env.AUTH_TOKEN,
-        ACCOUNT_ID:          env.ACCOUNT_ID,
-        BUCKET_NAME:         env.BUCKET_NAME,
-        R2_ACCESS_KEY_ID:    env.R2_ACCESS_KEY_ID,
-        R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
+        S3_ENDPOINT:          env.S3_ENDPOINT,
+        S3_BUCKET_NAME:       env.S3_BUCKET_NAME,
+        S3_ACCESS_KEY_ID:     env.S3_ACCESS_KEY_ID,
+        S3_SECRET_ACCESS_KEY: env.S3_SECRET_ACCESS_KEY,
       });
     }
 
@@ -85,11 +94,10 @@ export default {
 `;
 
 const BINDINGS = {
-  AUTH_TOKEN:           "test-token",
-  ACCOUNT_ID:           "test-account",
-  BUCKET_NAME:          "lfs-objects",
-  R2_ACCESS_KEY_ID:     "test-key-id",
-  R2_SECRET_ACCESS_KEY: "test-secret",
+  S3_ENDPOINT: "https://test-account.r2.cloudflarestorage.com",
+  S3_BUCKET_NAME: "lfs-objects",
+  S3_ACCESS_KEY_ID: "test-key-id",
+  S3_SECRET_ACCESS_KEY: "test-secret",
 };
 
 let mf: Miniflare;
@@ -106,7 +114,9 @@ beforeAll(async () => {
   await mf.ready;
 
   db = await mf.getD1Database("DB");
-  for (const stmt of SCHEMA.split(";").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean)) {
+  for (const stmt of SCHEMA.split(";")
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean)) {
     await db.prepare(stmt).run();
   }
 });
@@ -123,7 +133,9 @@ beforeEach(async () => {
 });
 
 async function get(path: string) {
-  return (await mf.dispatchFetch(`http://worker${path}`)).json() as Promise<any>;
+  return (
+    await mf.dispatchFetch(`http://worker${path}`)
+  ).json() as Promise<any>;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +195,11 @@ describe("D1 binding (DB)", () => {
     await get("/d1/insert?key=aabbcc&path=file.bin");
     const res = await get("/d1/select");
     expect(res.locks).toHaveLength(1);
-    expect(res.locks[0]).toMatchObject({ id: "aabbcc", owner: "alice", path: "file.bin" });
+    expect(res.locks[0]).toMatchObject({
+      id: "aabbcc",
+      owner: "alice",
+      path: "file.bin",
+    });
   });
 
   test("UNIQUE (repo, path) constraint is enforced inside worker", async () => {
