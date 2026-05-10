@@ -1,13 +1,12 @@
 import { Octokit } from "@octokit/rest";
 import type { MiddlewareHandler } from "hono";
 
-type Env = {
-  Bindings: CloudflareBindings;
-  Variables: { user: string };
-};
+import type { AppEnv } from "./index";
 
 // Exported for unit testing — pure function, no I/O.
-export function extractToken(header: string): { username: string; token: string } | null {
+export function extractToken(
+  header: string,
+): { username: string; token: string } | null {
   const space = header.indexOf(" ");
   if (space === -1) return null;
 
@@ -23,7 +22,10 @@ export function extractToken(header: string): { username: string; token: string 
     }
     const colon = decoded.indexOf(":");
     if (colon === -1) return null;
-    return { username: decoded.slice(0, colon), token: decoded.slice(colon + 1) };
+    return {
+      username: decoded.slice(0, colon),
+      token: decoded.slice(colon + 1),
+    };
   }
 
   // RemoteAuth / Bearer / any other scheme: raw credential is the token.
@@ -33,7 +35,7 @@ export function extractToken(header: string): { username: string; token: string 
 const DENY = { message: "Credentials needed" };
 const DENY_HEADERS = { "LFS-Authenticate": 'Basic realm="Git LFS"' } as const;
 
-export const authMiddleware: MiddlewareHandler<Env> = async (c, next) => {
+export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   const header = c.req.header("Authorization");
   if (!header) return c.json(DENY, 401, DENY_HEADERS);
 

@@ -1,20 +1,18 @@
-import type { Context } from "hono";
+import { sValidator } from "@hono/standard-validator";
+import type { z } from "zod";
+import { Context } from "hono";
 import { batchRequestSchema } from "./api-schema";
-import type { S3Bucket } from "./s3";
+import type { AppEnv, Ctx } from "./index";
 import assert from "assert";
 
-type AppEnv = {
-  Bindings: CloudflareBindings;
-  Variables: { user: string; s3bucket: S3Bucket };
-};
+export const batchValidator = sValidator("json", batchRequestSchema, (r, c) => {
+  if (!r.success) return c.json({ message: "Invalid request" }, 422);
+});
 
-export async function batchHandler(c: Context<AppEnv>): Promise<Response> {
-  let body: ReturnType<typeof batchRequestSchema.parse>;
-  try {
-    body = batchRequestSchema.parse(await c.req.json());
-  } catch {
-    return c.json({ message: "Invalid request" }, 422);
-  }
+export async function batchHandler(
+  c: Ctx<z.infer<typeof batchRequestSchema>>,
+): Promise<Response> {
+  const body = c.req.valid("json");
 
   const owner = c.req.param("owner");
   const repo = c.req.param("repo").replace(/\.git$/, "");

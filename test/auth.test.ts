@@ -1,5 +1,6 @@
 import { mock, describe, test, expect, beforeEach } from "bun:test";
 import { Hono } from "hono";
+import type { AppEnv } from "../src/index";
 
 // ---------------------------------------------------------------------------
 // Octokit mock — must be set up before auth.ts is imported
@@ -14,13 +15,15 @@ mock.module("@octokit/rest", () => ({
     rest = {
       users: {
         getAuthenticated: async () => {
-          if (!mockAuthenticated) throw Object.assign(new Error("Unauthorized"), { status: 401 });
+          if (!mockAuthenticated)
+            throw Object.assign(new Error("Unauthorized"), { status: 401 });
           return { data: { login: mockGithubLogin } };
         },
       },
       repos: {
         get: async () => {
-          if (!mockHasRepoAccess) throw Object.assign(new Error("Not found"), { status: 404 });
+          if (!mockHasRepoAccess)
+            throw Object.assign(new Error("Not found"), { status: 404 });
           return { data: {} };
         },
       },
@@ -92,8 +95,6 @@ describe("extractToken", () => {
 // authMiddleware — HTTP-level tests via Hono's app.request()
 // ---------------------------------------------------------------------------
 
-type AppEnv = { Bindings: CloudflareBindings; Variables: { user: string } };
-
 function makeApp() {
   const app = new Hono<AppEnv>();
   app.use("/:owner/:repo/*", authMiddleware);
@@ -158,7 +159,7 @@ describe("authMiddleware", () => {
 
     test("401 body contains credentials-needed message", async () => {
       const res = await app.request(REPO_URL);
-      const body = await res.json() as any;
+      const body = (await res.json()) as any;
       expect(body.message).toBe("Credentials needed");
     });
   });
@@ -176,7 +177,7 @@ describe("authMiddleware", () => {
       const res = await app.request(REPO_URL, {
         headers: { Authorization: basic("alice", "ghp_valid_token") },
       });
-      const body = await res.json() as any;
+      const body = (await res.json()) as any;
       expect(body.user).toBe("gh-alice");
     });
 

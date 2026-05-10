@@ -1,19 +1,21 @@
-import type { Context } from "hono";
+import { sValidator } from "@hono/standard-validator";
+import type { z } from "zod";
+import { Context } from "hono";
 import { verifyRequestSchema } from "./api-schema";
-import type { S3Bucket } from "./s3";
+import type { AppEnv, Ctx } from "./index";
 
-type AppEnv = {
-  Bindings: CloudflareBindings;
-  Variables: { user: string; s3bucket: S3Bucket };
-};
+export const verifyValidator = sValidator(
+  "json",
+  verifyRequestSchema,
+  (r, c) => {
+    if (!r.success) return c.json({ message: "Invalid request" }, 422);
+  },
+);
 
-export async function verifyHandler(c: Context<AppEnv>): Promise<Response> {
-  let body: ReturnType<typeof verifyRequestSchema.parse>;
-  try {
-    body = verifyRequestSchema.parse(await c.req.json());
-  } catch {
-    return c.json({ message: "Invalid request" }, 422);
-  }
+export async function verifyHandler(
+  c: Ctx<z.infer<typeof verifyRequestSchema>>,
+): Promise<Response> {
+  const body = c.req.valid("json");
 
   const owner = c.req.param("owner");
   const repo = c.req.param("repo").replace(/\.git$/, "");

@@ -1,14 +1,12 @@
-import type { Context } from "hono";
+import { sValidator } from "@hono/standard-validator";
+import type { z } from "zod";
 import {
   createLockRequestSchema,
   lockVerifyRequestSchema,
   unlockRequestSchema,
 } from "./api-schema";
-
-type AppEnv = {
-  Bindings: CloudflareBindings;
-  Variables: { user: string };
-};
+import type { AppEnv, Ctx } from "./index";
+import { Context } from "hono";
 
 type LockRow = { id: string; owner: string; path: string; locked_at: string };
 
@@ -19,11 +17,16 @@ function generateLockId(): string {
 }
 
 function toApiLock(row: LockRow) {
-  return { id: row.id, path: row.path, locked_at: row.locked_at, owner: { name: row.owner } };
+  return {
+    id: row.id,
+    path: row.path,
+    locked_at: row.locked_at,
+    owner: { name: row.owner },
+  };
 }
 
-function repoKey(c: Context<AppEnv>): string {
-  return `${c.req.param("owner")}/${c.req.param("repo").replace(/\.git$/, "")}`;
+function repoKey(owner: string, repo: string): string {
+  return `${owner}/${repo.replace(/\.git$/, "")}`;
 }
 
 const SELECT_LOCK = "SELECT id, owner, path, locked_at FROM locks";
@@ -32,34 +35,47 @@ const SELECT_LOCK = "SELECT id, owner, path, locked_at FROM locks";
 // POST /:owner/:repo/locks — Create Lock
 // ---------------------------------------------------------------------------
 
-export async function createLockHandler(c: Context<AppEnv>): Promise<Response> {
-  let body: ReturnType<typeof createLockRequestSchema.parse>;
-  try {
-    body = createLockRequestSchema.parse(await c.req.json());
-  } catch {
-    return c.json({ message: "Invalid request" }, 422);
-  }
+export const createLockValidator = sValidator(
+  "json",
+  createLockRequestSchema,
+  (r, c) => {
+    if (!r.success) return c.json({ message: "Invalid request" }, 422);
+  },
+);
 
-  const repo = repoKey(c);
+export async function createLockHandler(
+  c: Ctx<z.infer<typeof createLockRequestSchema>>,
+): Promise<Response> {
+  const body = c.req.valid("json");
+
+  const repo = repoKey(c.req.param("owner"), c.req.param("repo"));
   const user = c.get("user");
   const id = generateLockId();
   const locked_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
-  const result = await c.env.DB
-    .prepare("INSERT OR IGNORE INTO locks (id, owner, path, repo, locked_at) VALUES (?, ?, ?, ?, ?)")
+  const result = await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO locks (id, owner, path, repo, locked_at) VALUES (?, ?, ?, ?, ?)",
+  )
     .bind(id, user, body.path, repo, locked_at)
     .run();
 
   if (result.meta.changes === 0) {
-    const existing = await c.env.DB
-      .prepare(`${SELECT_LOCK} WHERE repo = ? AND path = ?`)
+    const existing = await c.env.DB.prepare(
+      `${SELECT_LOCK} WHERE repo = ? AND path = ?`,
+    )
       .bind(repo, body.path)
       .first<LockRow>();
     if (!existing) return c.json({ message: "Internal error" }, 500);
-    return c.json({ lock: toApiLock(existing), message: "already created lock" }, 409);
+    return c.json(
+      { lock: toApiLock(existing), message: "already created lock" },
+      409,
+    );
   }
 
-  return c.json({ lock: { id, path: body.path, locked_at, owner: { name: user } } }, 201);
+  return c.json(
+    { lock: { id, path: body.path, locked_at, owner: { name: user } } },
+    201,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -67,14 +83,15 @@ export async function createLockHandler(c: Context<AppEnv>): Promise<Response> {
 // ---------------------------------------------------------------------------
 
 export async function listLocksHandler(c: Context<AppEnv>): Promise<Response> {
-  const repo = repoKey(c);
+  const repo = repoKey(c.req.param("owner"), c.req.param("repo"));
   const pathFilter = c.req.query("path") ?? null;
   const idFilter = c.req.query("id") ?? null;
   const cursor = c.req.query("cursor") ?? null;
   const limitParam = parseInt(c.req.query("limit") ?? "0", 10);
   const limit = Math.min(limitParam > 0 ? limitParam : 100, 100);
 
-  const { results } = await c.env.DB.prepare(`
+  const { results } = await c.env.DB.prepare(
+    `
     ${SELECT_LOCK}
     WHERE repo = ?
       AND (path = ? OR ? IS NULL)
@@ -85,7 +102,10 @@ export async function listLocksHandler(c: Context<AppEnv>): Promise<Response> {
       )
     ORDER BY locked_at, id
     LIMIT ?
-  `).bind(repo, pathFilter, pathFilter, idFilter, idFilter, cursor, limit + 1).all<LockRow>();
+  `,
+  )
+    .bind(repo, pathFilter, pathFilter, idFilter, idFilter, cursor, limit + 1)
+    .all<LockRow>();
 
   const hasMore = results.length > limit;
   const page = hasMore ? results.slice(0, limit) : results;
@@ -98,21 +118,24 @@ export async function listLocksHandler(c: Context<AppEnv>): Promise<Response> {
 // POST /:owner/:repo/locks/verify — Verify Locks (pre-push)
 // ---------------------------------------------------------------------------
 
-export async function verifyLocksHandler(c: Context<AppEnv>): Promise<Response> {
-  let body: ReturnType<typeof lockVerifyRequestSchema.parse> = {};
-  try {
-    body = lockVerifyRequestSchema.parse(await c.req.json());
-  } catch {
-    // all fields optional; fall back to defaults
-  }
+export const verifyLocksValidator = sValidator(
+  "json",
+  lockVerifyRequestSchema.catch({}),
+);
 
-  const repo = repoKey(c);
+export async function verifyLocksHandler(
+  c: Ctx<z.infer<typeof lockVerifyRequestSchema>>,
+): Promise<Response> {
+  const body = c.req.valid("json");
+
+  const repo = repoKey(c.req.param("owner"), c.req.param("repo"));
   const user = c.get("user");
   const cursor = body.cursor ?? null;
   const limitParam = body.limit ?? 0;
   const limit = Math.min(limitParam > 0 ? limitParam : 100, 100);
 
-  const { results } = await c.env.DB.prepare(`
+  const { results } = await c.env.DB.prepare(
+    `
     ${SELECT_LOCK}
     WHERE repo = ?
       AND locked_at >= COALESCE(
@@ -121,7 +144,10 @@ export async function verifyLocksHandler(c: Context<AppEnv>): Promise<Response> 
       )
     ORDER BY locked_at, id
     LIMIT ?
-  `).bind(repo, cursor, limit + 1).all<LockRow>();
+  `,
+  )
+    .bind(repo, cursor, limit + 1)
+    .all<LockRow>();
 
   const hasMore = results.length > limit;
   const page = hasMore ? results.slice(0, limit) : results;
@@ -137,27 +163,33 @@ export async function verifyLocksHandler(c: Context<AppEnv>): Promise<Response> 
 // POST /:owner/:repo/locks/:id/unlock — Delete Lock
 // ---------------------------------------------------------------------------
 
-export async function unlockHandler(c: Context<AppEnv>): Promise<Response> {
-  let body: ReturnType<typeof unlockRequestSchema.parse> = {};
-  try {
-    body = unlockRequestSchema.parse(await c.req.json());
-  } catch {
-    // body is optional
-  }
+export const unlockValidator = sValidator(
+  "json",
+  unlockRequestSchema.catch({}),
+);
 
-  const repo = repoKey(c);
+export async function unlockHandler(
+  c: Ctx<z.infer<typeof unlockRequestSchema>>,
+): Promise<Response> {
+  const body = c.req.valid("json");
+
+  const repo = repoKey(c.req.param("owner"), c.req.param("repo"));
   const lockId = c.req.param("id");
   const user = c.get("user");
 
-  const lock = await c.env.DB
-    .prepare(`${SELECT_LOCK} WHERE id = ? AND repo = ?`)
+  const lock = await c.env.DB.prepare(
+    `${SELECT_LOCK} WHERE id = ? AND repo = ?`,
+  )
     .bind(lockId, repo)
     .first<LockRow>();
 
   if (!lock) return c.json({ message: "Lock not found" }, 404);
 
   if (lock.owner !== user && !body.force) {
-    return c.json({ message: "You must have push access to delete locks" }, 403);
+    return c.json(
+      { message: "You must have push access to delete locks" },
+      403,
+    );
   }
 
   await c.env.DB.prepare("DELETE FROM locks WHERE id = ?").bind(lockId).run();

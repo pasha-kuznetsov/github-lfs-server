@@ -1,3 +1,4 @@
+import { MiddlewareHandler } from "hono";
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -31,15 +32,6 @@ export class S3Bucket {
     });
   }
 
-  private static singleton: S3Bucket | null = null;
-
-  public static getSingleton(env: S3Env) {
-    if (!S3Bucket.singleton) {
-      S3Bucket.singleton = new S3Bucket(env);
-    }
-    return S3Bucket.singleton;
-  }
-
   async presignUpload(
     key: string,
     verifyHref: string,
@@ -47,7 +39,7 @@ export class S3Bucket {
     | { actions: { upload: { href: string }; verify: { href: string } } }
     | Record<string, never>
   > {
-    if (!("message" in await this.verifyObject(key))) return {};
+    if (!("message" in (await this.verifyObject(key)))) return {};
     const href = await this.presignCommand(
       new PutObjectCommand({ Bucket: this.env.S3_BUCKET_NAME, Key: key }),
     );
@@ -61,19 +53,24 @@ export class S3Bucket {
     | { error: { code: number; message: string } }
   > {
     const info = await this.verifyObject(key);
-    if ("message" in info) return { error: { code: 404, message: info.message } };
+    if ("message" in info)
+      return { error: { code: 404, message: info.message } };
     const href = await this.presignCommand(
       new GetObjectCommand({ Bucket: this.env.S3_BUCKET_NAME, Key: key }),
     );
     return { actions: { download: { href } } };
   }
 
-  async verifyObject(key: string, size?: number): Promise<Record<string, never> | { message: string }> {
+  async verifyObject(
+    key: string,
+    size?: number,
+  ): Promise<Record<string, never> | { message: string }> {
     try {
       const res = await this.client.send(
         new HeadObjectCommand({ Bucket: this.env.S3_BUCKET_NAME, Key: key }),
       );
-      if (size !== undefined && size !== (res.ContentLength ?? 0)) return { message: "Object size mismatch" };
+      if (size !== undefined && size !== (res.ContentLength ?? 0))
+        return { message: "Object size mismatch" };
       return {};
     } catch {
       return { message: "Object not found" };

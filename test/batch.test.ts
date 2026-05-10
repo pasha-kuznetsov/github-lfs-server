@@ -1,9 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { Hono } from "hono";
-import { batchHandler } from "../src/batch";
+import { batchValidator, batchHandler } from "../src/batch";
 import { S3Bucket } from "../src/s3";
-
-type AppEnv = { Bindings: CloudflareBindings; Variables: { user: string; s3bucket: S3Bucket } };
+import type { AppEnv } from "../src/index";
 
 function makeEnv() {
   return {
@@ -17,8 +16,11 @@ function makeEnv() {
 
 function makeApp() {
   const app = new Hono<AppEnv>();
-  app.use("/:owner/:repo/*", (c, next) => { c.set("s3bucket", new S3Bucket(c.env)); return next(); });
-  app.post("/:owner/:repo/objects/batch", batchHandler);
+  app.use("/:owner/:repo/*", (c, next) => {
+    c.set("s3bucket", new S3Bucket(c.env));
+    return next();
+  });
+  app.post("/:owner/:repo/objects/batch", batchValidator, batchHandler);
   return app;
 }
 
@@ -74,7 +76,6 @@ describe("batch upload", () => {
       "http://worker/alice/repo/objects/verify",
     );
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,6 @@ describe("batch download", () => {
     expect(res.status).toBe(200);
     expect(body.objects).toHaveLength(0);
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ describe("batch download", () => {
 // ---------------------------------------------------------------------------
 
 describe("request validation", () => {
-  test("returns 422 for invalid JSON body", async () => {
+  test("returns 400 for invalid JSON body", async () => {
     const res = await app.request(
       "http://worker/alice/repo/objects/batch",
       {
@@ -133,7 +133,7 @@ describe("request validation", () => {
       },
       makeEnv(),
     );
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 
   test("returns 422 when operation is unknown", async () => {

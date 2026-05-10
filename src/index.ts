@@ -1,21 +1,30 @@
-import { Hono } from "hono";
+import { Context, Hono, MiddlewareHandler } from "hono";
 import { authMiddleware } from "./auth";
-import { batchHandler } from "./batch";
-import { verifyHandler } from "./verify";
+import { batchValidator, batchHandler } from "./batch";
+import { verifyValidator, verifyHandler } from "./verify";
 import {
+  createLockValidator,
   createLockHandler,
   listLocksHandler,
+  verifyLocksValidator,
   verifyLocksHandler,
+  unlockValidator,
   unlockHandler,
 } from "./locks";
 import { S3Bucket } from "./s3";
 
 const LFS_CONTENT_TYPE = "application/vnd.git-lfs+json";
 
-type AppEnv = {
+export type AppEnv = {
   Bindings: CloudflareBindings;
   Variables: { user: string; s3bucket: S3Bucket };
 };
+
+export type Ctx<Schema> = Context<
+  AppEnv,
+  string,
+  { in: { json: Schema }; out: { json: Schema } }
+>;
 
 const app = new Hono<AppEnv>();
 
@@ -37,17 +46,22 @@ app.use("/:owner/:repo/*", async (c, next) => {
 app.use("/:owner/:repo/*", authMiddleware);
 
 // Inject S3Bucket instance.
-app.use("/:owner/:repo/objects/*", (c, next) => {
-  c.set("s3bucket", S3Bucket.getSingleton(c.env));
-  return next();
+let s3Bucket: S3Bucket | null = null;
+app.use("/:owner/:repo/objects/*", async (c, next) => {
+  c.set("s3bucket", s3Bucket || (s3Bucket = new S3Bucket(c.env)));
+  await next();
 });
 
 // Routes
-app.post("/:owner/:repo/objects/batch", batchHandler);
-app.post("/:owner/:repo/objects/verify", verifyHandler);
-app.post("/:owner/:repo/locks", createLockHandler);
+app.post("/:owner/:repo/objects/batch", batchValidator, batchHandler);
+app.post("/:owner/:repo/objects/verify", verifyValidator, verifyHandler);
+app.post("/:owner/:repo/locks", createLockValidator, createLockHandler);
 app.get("/:owner/:repo/locks", listLocksHandler);
-app.post("/:owner/:repo/locks/verify", verifyLocksHandler);
-app.post("/:owner/:repo/locks/:id/unlock", unlockHandler);
+app.post(
+  "/:owner/:repo/locks/verify",
+  verifyLocksValidator,
+  verifyLocksHandler,
+);
+app.post("/:owner/:repo/locks/:id/unlock", unlockValidator, unlockHandler);
 
 export default app;
