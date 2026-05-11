@@ -34,7 +34,7 @@ describe("create", () => {
 
   test("throws on duplicate path", async () => {
     await repo().create("alice", "file.bin");
-    await expect(repo().create("bob", "file.bin")).rejects.toThrow();
+    await expect(() => repo().create("bob", "file.bin")).rejects.toThrow();
   });
 });
 
@@ -67,7 +67,9 @@ describe("getById", () => {
   });
 
   test("returns null when uuid does not exist", async () => {
-    expect(await repo().getById("00000000-0000-0000-0000-000000000000")).toBeNull();
+    expect(
+      await repo().getById("00000000-0000-0000-0000-000000000000"),
+    ).toBeNull();
   });
 });
 
@@ -79,7 +81,12 @@ describe("list", () => {
   test("returns all locks ordered by id", async () => {
     const a = await repo().create("alice", "a.bin");
     const b = await repo().create("bob", "b.bin");
-    const rows = await repo().list({ uuidFilter: null, pathFilter: null, cursor: null, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: null,
+      cursor: null,
+      limit: 100,
+    });
     expect(rows).toHaveLength(2);
     expect(rows[0].uuid).toBe(a.uuid);
     expect(rows[1].uuid).toBe(b.uuid);
@@ -89,14 +96,24 @@ describe("list", () => {
     await repo().create("alice", "a.bin");
     await repo().create("alice", "b.bin");
     await repo().create("alice", "c.bin");
-    const rows = await repo().list({ uuidFilter: null, pathFilter: null, cursor: null, limit: 2 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: null,
+      cursor: null,
+      limit: 2,
+    });
     expect(rows).toHaveLength(2);
   });
 
   test("filters by uuid", async () => {
     const a = await repo().create("alice", "a.bin");
     await repo().create("alice", "b.bin");
-    const rows = await repo().list({ uuidFilter: a.uuid, pathFilter: null, cursor: null, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: a.uuid,
+      pathFilter: null,
+      cursor: null,
+      limit: 100,
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0].uuid).toBe(a.uuid);
   });
@@ -104,7 +121,12 @@ describe("list", () => {
   test("filters by path", async () => {
     await repo().create("alice", "a.bin");
     await repo().create("alice", "b.bin");
-    const rows = await repo().list({ uuidFilter: null, pathFilter: "a.bin", cursor: null, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: "a.bin",
+      cursor: null,
+      limit: 100,
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0].path).toBe("a.bin");
   });
@@ -113,7 +135,12 @@ describe("list", () => {
     const a = await repo().create("alice", "a.bin");
     const b = await repo().create("alice", "b.bin");
     const c = await repo().create("alice", "c.bin");
-    const rows = await repo().list({ uuidFilter: null, pathFilter: null, cursor: b.id, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: null,
+      cursor: b.id,
+      limit: 100,
+    });
     expect(rows.map((r) => r.uuid)).toEqual([b.uuid, c.uuid]);
   });
 
@@ -122,12 +149,22 @@ describe("list", () => {
     const b = await repo().create("alice", "b.bin");
     const c = await repo().create("alice", "c.bin");
     await repo().delete(b.uuid);
-    const rows = await repo().list({ uuidFilter: null, pathFilter: null, cursor: b.id, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: null,
+      cursor: b.id,
+      limit: 100,
+    });
     expect(rows.map((r) => r.uuid)).toEqual([c.uuid]);
   });
 
   test("returns empty array when no locks exist", async () => {
-    const rows = await repo().list({ uuidFilter: null, pathFilter: null, cursor: null, limit: 100 });
+    const rows = await repo().list({
+      uuidFilter: null,
+      pathFilter: null,
+      cursor: null,
+      limit: 100,
+    });
     expect(rows).toHaveLength(0);
   });
 });
