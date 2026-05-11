@@ -1,12 +1,17 @@
 import { sValidator } from "@hono/standard-validator";
+import { Context, Hono } from "hono";
+
+import type { AppEnv } from "../index";
 import {
   createLockRequestSchema,
   lockVerifyRequestSchema,
   unlockRequestSchema,
 } from "./_schema";
-import { Context, Hono } from "hono";
-import type { AppEnv } from "../index";
 import type { LockRow } from "../db/locks";
+
+// -----------------------------------------------------------------------------
+// https://github.com/git-lfs/git-lfs/blob/main/docs/api/locking.md
+// -----------------------------------------------------------------------------
 
 export function initLocksApi(app: Hono<AppEnv>) {
   // ---------------------------------------------------------------------------
@@ -18,6 +23,9 @@ export function initLocksApi(app: Hono<AppEnv>) {
       if (!r.success) return c.json({ message: "Invalid request" }, 422);
     }),
     async (c) => {
+      if (c.get("access") !== "write") {
+        return c.json({ message: "You must have push access to create a lock" }, 403);
+      }
       const body = c.req.valid("json");
       const user = c.get("user");
       const stub = getLocksStub(c);
@@ -54,6 +62,9 @@ export function initLocksApi(app: Hono<AppEnv>) {
     "/:owner/:repo/locks/verify",
     sValidator("json", lockVerifyRequestSchema.catch({})),
     async (c) => {
+      if (c.get("access") !== "write") {
+        return c.json({ message: "You must have push access to verify locks" }, 403);
+      }
       const body = c.req.valid("json");
       const user = c.get("user");
 
@@ -79,6 +90,9 @@ export function initLocksApi(app: Hono<AppEnv>) {
     "/:owner/:repo/locks/:id/unlock",
     sValidator("json", unlockRequestSchema.catch({})),
     async (c) => {
+      if (c.get("access") !== "write") {
+        return c.json({ message: "You must have push access to delete locks" }, 403);
+      }
       const body = c.req.valid("json");
       const uuid = c.req.param("id");
       const user = c.get("user");
@@ -87,10 +101,7 @@ export function initLocksApi(app: Hono<AppEnv>) {
       const lock = uuid ? await stub.getById(uuid) : null;
       if (!lock) return c.json({ message: "Lock not found" }, 404);
       if (lock.owner !== user && !body.force) {
-        return c.json(
-          { message: "You must have push access to delete locks" }, // TODO: fix message
-          403,
-        );
+        return c.json({ message: "You must have push access to delete locks" }, 403);
       }
 
       await stub.delete(uuid);

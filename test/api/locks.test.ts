@@ -10,10 +10,11 @@ import { Hono } from "hono";
 import { initLocksApi } from "../../src/api/locks";
 import type { AppEnv } from "../../src/index";
 
-function makeApp(user: string) {
+function makeApp(user: string, access: "read" | "write" = "write") {
   const app = new Hono<AppEnv>();
   app.use("*", async (c, next) => {
     c.set("user", user);
+    c.set("access", access);
     await next();
   });
   initLocksApi(app);
@@ -22,6 +23,7 @@ function makeApp(user: string) {
 
 const alice = makeApp("alice");
 const bob = makeApp("bob");
+const readAlice = makeApp("alice", "read");
 
 const LFS = {
   Accept: "application/vnd.git-lfs+json",
@@ -121,6 +123,15 @@ describe("createLockHandler", () => {
       env,
     );
     expect(res.status).toBe(422);
+  });
+
+  test("403 when read-only user attempts to create a lock", async () => {
+    const res = await readAlice.request(
+      "http://w/alice/repo/locks",
+      { method: "POST", headers: LFS, body: JSON.stringify({ path: "file.bin" }) },
+      env,
+    );
+    expect(res.status).toBe(403);
   });
 });
 
@@ -294,6 +305,15 @@ describe("listLocksHandler", () => {
     expect(page2.locks[0].id).toBe(third.id);
   });
 
+  test("200 when read-only user lists locks", async () => {
+    const res = await readAlice.request(
+      "http://w/alice/repo/locks",
+      { headers: LFS },
+      env,
+    );
+    expect(res.status).toBe(200);
+  });
+
   test("cursor: returns locks from cursor position inclusive", async () => {
     const stub = locksStub("alice/repo");
     await stub.create("alice", "a.bin");
@@ -380,6 +400,15 @@ describe("verifyLocksHandler", () => {
     );
     expect(res.status).toBe(200);
   });
+
+  test("403 when read-only user attempts to verify locks", async () => {
+    const res = await readAlice.request(
+      "http://w/alice/repo/locks/verify",
+      { method: "POST", headers: LFS, body: "{}" },
+      env,
+    );
+    expect(res.status).toBe(403);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -448,6 +477,16 @@ describe("unlockHandler", () => {
       env,
     );
     expect(res.status).toBe(404);
+  });
+
+  test("403 when read-only user attempts to unlock", async () => {
+    const lock = await locksStub("alice/repo").create("alice", "assets/file-a.bin");
+    const res = await readAlice.request(
+      `http://w/alice/repo/locks/${lock.uuid}/unlock`,
+      { method: "POST", headers: LFS, body: "{}" },
+      env,
+    );
+    expect(res.status).toBe(403);
   });
 
   test("lock is actually deleted after unlock", async () => {

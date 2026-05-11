@@ -1,4 +1,5 @@
 import { Context, Hono, MiddlewareHandler } from "hono";
+
 import { authMiddleware } from "./api/auth";
 import { initObjectsApi } from "./api/objects";
 import { initLocksApi } from "./api/locks";
@@ -8,7 +9,11 @@ const LFS_CONTENT_TYPE = "application/vnd.git-lfs+json";
 
 export type AppEnv = {
   Bindings: CloudflareBindings;
-  Variables: { user: string; objects: ObjectsStorage };
+  Variables: {
+    user: string;
+    access: "read" | "write";
+    objects: ObjectsStorage;
+  };
 };
 
 const app = new Hono<AppEnv>();

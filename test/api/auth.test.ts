@@ -9,6 +9,7 @@ import type { AppEnv } from "../../src/index";
 const mockState = vi.hoisted(() => ({
   authenticated: true,
   hasRepoAccess: true,
+  hasWriteAccess: true,
   githubLogin: "alice",
 }));
 
@@ -26,7 +27,7 @@ vi.mock("@octokit/rest", () => ({
         get: async () => {
           if (!mockState.hasRepoAccess)
             throw Object.assign(new Error("Not found"), { status: 404 });
-          return { data: {} };
+          return { data: { permissions: { pull: true, push: mockState.hasWriteAccess, admin: false } } };
         },
       },
     };
@@ -100,7 +101,7 @@ describe("extractToken", () => {
 function makeApp() {
   const app = new Hono<AppEnv>();
   app.use("/:owner/:repo/*", authMiddleware);
-  app.get("/:owner/:repo/", (c) => c.json({ ok: true, user: c.get("user") }));
+  app.get("/:owner/:repo/", (c) => c.json({ ok: true, user: c.get("user"), access: c.get("access") }));
   return app;
 }
 
@@ -115,6 +116,7 @@ describe("authMiddleware", () => {
   beforeEach(() => {
     mockState.authenticated = true;
     mockState.hasRepoAccess = true;
+    mockState.hasWriteAccess = true;
     mockState.githubLogin = "alice";
   });
 
@@ -195,6 +197,22 @@ describe("authMiddleware", () => {
         headers: { Authorization: basic("alice", "ghp_valid_token") },
       });
       expect(res.status).toBe(200);
+    });
+
+    test("sets access to 'write' when user has push permission", async () => {
+      mockState.hasWriteAccess = true;
+      const res = await app.request(REPO_URL, {
+        headers: { Authorization: basic("alice", "ghp_valid_token") },
+      });
+      expect(((await res.json()) as any).access).toBe("write");
+    });
+
+    test("sets access to 'read' when user only has pull permission", async () => {
+      mockState.hasWriteAccess = false;
+      const res = await app.request(REPO_URL, {
+        headers: { Authorization: basic("alice", "ghp_valid_token") },
+      });
+      expect(((await res.json()) as any).access).toBe("read");
     });
   });
 });

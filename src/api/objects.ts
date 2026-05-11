@@ -5,6 +5,10 @@ import assert from "assert";
 import type { AppEnv } from "../index";
 import { batchRequestSchema, verifyRequestSchema } from "./_schema";
 
+// -----------------------------------------------------------------------------
+// https://github.com/git-lfs/git-lfs/blob/main/docs/api/batch.md
+// -----------------------------------------------------------------------------
+
 export function initObjectsApi(app: Hono<AppEnv>) {
   // ---------------------------------------------------------------------------
   // POST /:owner/:repo/objects/batch — Batch Objects API
@@ -20,6 +24,13 @@ export function initObjectsApi(app: Hono<AppEnv>) {
       const repo = c.req.param("repo").replace(/\.git$/, "");
       const origin = new URL(c.req.url).origin;
       const { operation, objects } = body;
+
+      if (operation === "upload" && c.get("access") !== "write") {
+        return c.json(
+          { message: "You must have push access to upload this object" },
+          403,
+        );
+      }
 
       const bucket = c.get("objects");
       const results = await Promise.all(

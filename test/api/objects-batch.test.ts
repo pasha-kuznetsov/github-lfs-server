@@ -14,9 +14,10 @@ function makeEnv() {
   } as any;
 }
 
-function makeApp() {
+function makeApp(access: "read" | "write" = "write") {
   const app = new Hono<AppEnv>();
   app.use("/:owner/:repo/*", (c, next) => {
+    c.set("access", access);
     c.set("objects", new ObjectsStorage(c.env));
     return next();
   });
@@ -75,6 +76,44 @@ describe("batch upload", () => {
     expect(body.objects[0].actions.verify.href).toBe(
       "http://worker/alice/repo/objects/verify",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Authorization
+// ---------------------------------------------------------------------------
+
+describe("batch authorization", () => {
+  test("403 when read-only user attempts upload", async () => {
+    const res = await makeApp("read").request(
+      "http://worker/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
+      },
+      makeEnv(),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("read-only user can download", async () => {
+    const res = await makeApp("read").request(
+      "http://worker/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "missing", size: 10 }],
+        }),
+      },
+      makeEnv(),
+    );
+    expect(res.status).toBe(200);
   });
 });
 

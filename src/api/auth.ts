@@ -1,7 +1,8 @@
-import { Octokit } from "@octokit/rest";
 import type { MiddlewareHandler } from "hono";
 
-import type { AppEnv } from "./index";
+import { Octokit } from "@octokit/rest";
+
+import type { AppEnv } from "../index";
 
 // Exported for unit testing — pure function, no I/O.
 export function extractToken(
@@ -48,11 +49,13 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   try {
     const octokit = new Octokit({ auth: extracted.token });
-    const [{ data: user }] = await Promise.all([
+    const [{ data: user }, { data: repoData }] = await Promise.all([
       octokit.rest.users.getAuthenticated(),
       octokit.rest.repos.get({ owner, repo }),
     ]);
+    const { permissions } = repoData;
     c.set("user", user.login);
+    c.set("access", permissions?.push || permissions?.admin ? "write" : "read");
   } catch {
     return c.json(DENY, 401, DENY_HEADERS);
   }
