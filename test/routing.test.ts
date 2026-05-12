@@ -99,3 +99,35 @@ describe("objects routes", () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Login routes — confirm all families are reachable through the main app.
+// Tests pick inputs that return deterministic non-404 responses without
+// triggering any outbound fetch calls.
+// ---------------------------------------------------------------------------
+
+describe("login routes", () => {
+  test("GET /api/v3/meta returns 200", async () => {
+    const res = await app.request("http://w/api/v3/meta");
+    expect(res.status).toBe(200);
+  });
+
+  test("GET /login/oauth/authorize without redirect_uri returns 400, not 404", async () => {
+    const res = await app.request("http://w/login/oauth/authorize?state=s");
+    expect(res.status).toBe(400);
+  });
+
+  test("GET /login/oauth/callback without state returns 400, not 404", async () => {
+    const res = await app.request("http://w/login/oauth/callback?code=x");
+    expect(res.status).toBe(400);
+  });
+
+  test("POST /login/oauth/access_token with no grant params returns 400, not 404", async () => {
+    const res = await app.request("http://w/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ unrelated: "param" }),
+    });
+    expect(res.status).toBe(400);
+  });
+});

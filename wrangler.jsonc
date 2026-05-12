@@ -3,50 +3,53 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "lfs-server",
-	"main": "src/index.ts",
-	"compatibility_date": "2026-05-08",
-	"assets": {
-		"binding": "ASSETS",
-		"directory": "./public",
-	},
-	"observability": {
-		"enabled": true,
-	},
-	"upload_source_maps": true,
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"r2_buckets": [
-		{
-			"binding": "LFS_BUCKET",
-			"bucket_name": "lfs-objects"
-		}
-	],
-	"durable_objects": {
-		"bindings": [
-			{
-				"name": "LOCKS",
-				"class_name": "RepoLocks"
-			}
-		],
-	},
-	"migrations": [
-		{
-			"tag": "v1",
-			"new_sqlite_classes": [
-				"RepoLocks"
-			]
-		}
-	],
-	"vars": {
-		// Listed here only so cf-typegen generates the types.
-		// Override with `wrangler secret put S3_ACCESS_KEY_ID` etc. — never commit real values.
-		"S3_ENDPOINT": "",
-		"S3_BUCKET_NAME": "lfs-objects",
-		"S3_ACCESS_KEY_ID": "",
-		"S3_SECRET_ACCESS_KEY": "",
-		"S3_PRESIGN_TTL": "3600",
-	},
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lfs-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-08",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./public",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    {
+      "binding": "LFS_BUCKET",
+      "bucket_name": "lfs-objects",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LOCKS",
+        "class_name": "RepoLocks",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RepoLocks"],
+    },
+  ],
+  "vars": {
+    // Listed here only so cf-typegen generates the types.
+    "S3_ENDPOINT": "https://<cloudfare-account-id>.r2.cloudflarestorage.com",
+    "S3_BUCKET_NAME": "lfs-objects",
+    "S3_PRESIGN_TTL": "3600",
+  },
+  "secrets": {
+    "required": [
+      // Override with `wrangler secret put <NAME>` — never commit real values.
+      "S3_ACCESS_KEY_ID",
+      "S3_SECRET_ACCESS_KEY",
+      "GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET",
+      "LOGIN_SECRET",
+    ],
+  },
 }

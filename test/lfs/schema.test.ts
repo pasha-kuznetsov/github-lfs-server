@@ -13,7 +13,7 @@ import {
   unlockRequestSchema,
   unlockResponseSchema,
   verifyRequestSchema,
-} from "../../src/api/_schema";
+} from "../../src/lfs/_schema";
 
 // ---------------------------------------------------------------------------
 // Fixtures

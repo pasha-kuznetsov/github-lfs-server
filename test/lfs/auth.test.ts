@@ -42,7 +42,7 @@ vi.mock("@octokit/rest", () => ({
   },
 }));
 
-import { authMiddleware, extractToken } from "../../src/api/auth";
+import { authMiddleware, extractToken } from "../../src/lfs/auth";
 
 // ---------------------------------------------------------------------------
 // extractToken — pure function tests, no app needed

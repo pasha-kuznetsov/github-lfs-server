@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { Hono } from "hono";
-import { objectsApi } from "../../src/api/objects";
+import { objectsApi } from "../../src/lfs/objects";
 import { ObjectsStorage } from "../../src/storage/objects";
 import type { AppEnv } from "../../src/index";
 
