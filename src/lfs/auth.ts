@@ -49,12 +49,10 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   try {
     const octokit = new Octokit({ auth: extracted.token });
-    const [{ data: user }, { data: repoData }, { data: membership }] = await Promise.all([
+    const [{ data: user }, { data: repoData }] = await Promise.all([
       octokit.rest.users.getAuthenticated(),
       octokit.rest.repos.get({ owner, repo }),
-      octokit.rest.orgs.getMembershipForAuthenticatedUser({ org: c.env.GITHUB_ORG }),
     ]);
-    if (membership.state !== "active") return c.json(DENY, 401, DENY_HEADERS);
     const { permissions } = repoData;
     c.set("user", user.login);
     c.set("access", permissions?.push || permissions?.admin ? "write" : "read");

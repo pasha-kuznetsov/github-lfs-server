@@ -179,14 +179,6 @@ describe("authMiddleware", () => {
       expect(res.status).toBe(401);
     });
 
-    test("rejects when user is not an org member", async () => {
-      mockState.isMember = false;
-      const res = await app.request(REPO_URL, {
-        headers: { Authorization: basic("alice", "valid-token") },
-      });
-      expect(res.status).toBe(401);
-    });
-
     test("401 carries LFS-Authenticate header", async () => {
       const res = await app.request(REPO_URL);
       expect(res.headers.get("LFS-Authenticate")).toBe('Basic realm="Git LFS"');
