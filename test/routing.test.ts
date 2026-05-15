@@ -119,6 +119,11 @@ describe("org alias routes", () => {
     expect(res.status).toBe(401);
   });
 
+  test("alias with correct org but different casing enforces auth (not 404)", async () => {
+    const res = await app.request("http://w/test-org/repo/locks", { headers: lfs }, env);
+    expect(res.status).toBe(401);
+  });
+
   test("alias requires LFS Accept header", async () => {
     const res = await app.request("http://w/Test-Org/repo/locks", {}, env);
     expect(res.status).toBe(404);

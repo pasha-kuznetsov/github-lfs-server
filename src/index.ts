@@ -25,7 +25,7 @@ app.route("/", loginApi);
 app.route("/lfs", lfsApi);
 
 app.all("/:org/:repo/*", (c, next) => {
-  if (!c.env.GITHUB_ORG || c.req.param("org") !== c.env.GITHUB_ORG) return next();
+  if (!c.env.GITHUB_ORG || c.req.param("org").toLowerCase() !== c.env.GITHUB_ORG.toLowerCase()) return next();
   const url = new URL(c.req.url);
   url.pathname = "/lfs" + url.pathname;
   return app.fetch(new Request(url, c.req.raw), c.env, executionCtx());
