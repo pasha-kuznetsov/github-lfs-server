@@ -25,6 +25,9 @@ node_modules/
 .env.production
 .dev.vars
 
+# cache
+.turbo
+
 # logs
 logs/
 *.log
