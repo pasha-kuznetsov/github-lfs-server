@@ -23,7 +23,6 @@ node_modules/
 # env
 .env
 .env.production
-.dev.vars
 
 # cache
 .turbo
@@ -47,7 +46,8 @@ lerna-debug.log*
 !.env.example
 
 wrangler.jsonc
-!wrangler.jsonc.example
+vars.json
+!wrangler.template.jsonc
 !test/**/wrangler.jsonc
 
 worker-configuration.d.ts

@@ -1,0 +1,21 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/init
+
+      - name: Write vars.json
+        run: printf '%s\n' "$VARS_JSON" > vars.json
+        env:
+          VARS_JSON: ${{ vars.VARS_JSON }}
+
+      - run: scripts/run.sh create-wrangler-json
+
+      - run: bun run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

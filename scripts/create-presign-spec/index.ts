@@ -1,11 +1,10 @@
 /**
- * Writes the JSON file given as the first CLI argument with frozen-clock presigned URLs.
+ * Writes the JSON file at the path from the first CLI argument (default:
+ * `src/storage/presign.spec.json`) with frozen-clock presigned URLs.
  *
  * - `expected*` — canonical strings asserted by unit tests (aws4fetch / production).
  * - `referenceAwsSdk*` — same inputs via @aws-sdk/s3-request-presigner (differs on PUT
  *   because the SDK adds optional checksum / x-id query params).
- *
- *   bun run presign:spec (from `server/`) — see `scripts/presign-spec/regenerate.sh`.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -19,12 +18,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { presignR2ObjectUrl } from "../../src/storage/presign.ts";
 
-const outArg = process.argv[2];
-if (!outArg) {
-  console.error("usage: bun run scripts/presign-spec/regenerate.ts <out-json-path>");
-  process.exit(1);
-}
-const OUT = resolve(outArg);
+const OUT = resolve(process.argv[2] ?? "src/storage/presign.spec.json");
 
 const FROZEN = new Date("2020-01-01T00:00:00.000Z");
 const FROZEN_STR = "20200101T000000Z";
@@ -48,7 +42,10 @@ const client = new S3Client({
   },
 });
 
-const signOpts = { expiresIn: Number(CONFIG.S3_PRESIGN_TTL), signingDate: FROZEN };
+const signOpts = {
+  expiresIn: Number(CONFIG.S3_PRESIGN_TTL),
+  signingDate: FROZEN,
+};
 
 const referenceAwsSdkPut = await getSignedUrl(
   client,

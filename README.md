@@ -4,17 +4,23 @@ A [Git LFS](https://git-lfs.com/) server running as a Cloudflare Worker. Stores 
 
 ## Setup
 
-### 1. Copy the example config
+### 1. Generate `wrangler.jsonc`
 
-```sh
-cp wrangler.jsonc.example wrangler.jsonc
+Create a `vars.json` file in the repository root (gitignored), for example:
+
+```json
+{
+  "cloudflare-account-id": "<your-cloudflare-account-id>",
+  "github-org": "<your-github-org>"
+}
 ```
 
-Edit `wrangler.jsonc` and fill in:
-- `S3_ENDPOINT` — `https://<your-account-id>.r2.cloudflarestorage.com`
-- `S3_BUCKET_NAME` — your R2 bucket name
-- `GITHUB_APP_HOME` — your worker URL
-- `GITHUB_ORG` — your GitHub org
+Install dependencies and run `scripts/run.sh` to create (gitignored) `wrangler.jsonc`:
+
+```sh
+bun install
+scripts/run.sh create-wrangler-json
+```
 
 ### 2. Create an R2 API token
 
@@ -41,10 +47,14 @@ wrangler secret put LOGIN_SECRET          # run: openssl rand -hex 32
 
 ## Deploy
 
+Locally (after `vars.json` exists and secrets are set):
+
 ```sh
 bun install
 bun run deploy
 ```
+
+For **GitHub Actions** (`workflow_dispatch` in `.github/workflows/deploy.yml`), set a repository variable **`VARS_JSON`** to the same JSON you would put in `vars.json`. The workflow writes it to `vars.json` before rendering `wrangler.jsonc`.
 
 ## Development
 

@@ -37,15 +37,15 @@
     },
   ],
   "vars": {
-    "S3_ENDPOINT": "https://<your-account-id>.r2.cloudflarestorage.com",
+    "S3_ENDPOINT": "https://{{[cloudflare-account-id]}}.r2.cloudflarestorage.com",
     "S3_BUCKET_NAME": "lfs-objects",
     "S3_PRESIGN_TTL": "3600",
-    "GITHUB_APP_HOME": "https://lfs-server.<your-account-id>.workers.dev",
-    "GITHUB_ORG": "<your-github-org>",
+    "GITHUB_APP_HOME": "https://lfs-server.{{[cloudflare-account-id]}}.workers.dev",
+    "GITHUB_ORG": "{{[github-org]}}",
   },
   "secrets": {
     "required": [
-      // Override with `wrangler secret put <NAME>` — never commit real values.
+      // Set with `wrangler secret put <NAME>`.
       "S3_ACCESS_KEY_ID",
       "S3_SECRET_ACCESS_KEY",
       "GITHUB_CLIENT_ID",

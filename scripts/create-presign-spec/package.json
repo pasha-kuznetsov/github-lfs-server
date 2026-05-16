@@ -1,5 +1,5 @@
 {
-  "name": "presign-spec",
+  "name": "@github-lfs-server/create-presign-spec",
   "private": true,
   "type": "module",
   "dependencies": {

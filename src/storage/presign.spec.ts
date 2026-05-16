@@ -26,7 +26,7 @@ const golden = JSON.parse(
 };
 
 describe("presign golden fixture", () => {
-  test("PUT presigned URL matches fixture (regenerate: bun run presign:spec)", async () => {
+  test("PUT presigned URL matches fixture (regenerate: scripts/run.sh create-presign-spec)", async () => {
     const c = golden.config;
     const href = await presignR2ObjectUrl({
       method: "PUT",
@@ -41,7 +41,7 @@ describe("presign golden fixture", () => {
     expect(href).toBe(golden.expectedPutPresignedUrl);
   });
 
-  test("GET presigned URL matches fixture (regenerate: bun run presign:spec)", async () => {
+  test("GET presigned URL matches fixture (regenerate: scripts/run.sh create-presign-spec)", async () => {
     const c = golden.config;
     const href = await presignR2ObjectUrl({
       method: "GET",
