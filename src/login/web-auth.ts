@@ -4,13 +4,13 @@ import { Octokit } from "@octokit/rest";
 import type { AppEnv } from "../index";
 import { decryptCode } from "./utils";
 
-export const SESSION_COOKIE = "gh_session";
+export const SESSION_COOKIE = "gh_session_v2";
 export const SESSION_TTL = 86400; // 1 day
 
 export const webAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (new URL(c.req.url).hostname === "localhost") return next();
 
-  const loginUrl = `/login/oauth/authorize?redirect_uri=${encodeURIComponent(c.env.GITHUB_APP_HOME + "/")}`;
+  const loginUrl = `/login/oauth/authorize?redirect_uri=${encodeURIComponent(c.env.GITHUB_APP_HOME + "/")}&scope=read%3Aorg`;
 
   const cookie = getCookie(c, SESSION_COOKIE);
   if (!cookie) return c.redirect(loginUrl);

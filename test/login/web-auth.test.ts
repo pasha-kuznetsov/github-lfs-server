@@ -94,6 +94,12 @@ describe("webAuthMiddleware", () => {
       );
     });
 
+    test("redirect requests read:org scope", async () => {
+      const res = await app.request("http://w/");
+      const location = new URL(res.headers.get("Location")!, "http://w");
+      expect(location.searchParams.get("scope")).toBe("read:org");
+    });
+
     test("invalid cookie returns 302", async () => {
       const res = await app.request("http://w/", {
         headers: { Cookie: `${SESSION_COOKIE}=not-a-valid-token` },
