@@ -8,7 +8,7 @@ Create an OAuth app at [https://github.com/settings/applications/new] (or your o
   ```
 - **Homepage URL:** (matching `GITHUB_APP_HOME` in the generated `wrangler.jsonc`)
   ```
-  https://lfs-server.{{[cloudflare-account-id]}}.workers.dev
+  https://lfs-server.{{[cloudflare-account-slug]}}.workers.dev
   ```
 - **Application description**: for example:
   ```
@@ -16,7 +16,7 @@ Create an OAuth app at [https://github.com/settings/applications/new] (or your o
   ```
 - **Authorization callback URL:**
   ```
-  https://lfs-server.{{[cloudflare-account-id]}}.workers.dev/login/oauth/callback
+  https://lfs-server.{{[cloudflare-account-slug]}}.workers.dev/login/oauth/callback
   ```
 
 **Generate a new client secret**. After GitHub shows the client credentials, store them with Wrangler (**you won't see them again**):

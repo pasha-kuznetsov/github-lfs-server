@@ -18,9 +18,13 @@ Create a `vars.json` file in the repository root (gitignored), for example:
 {
   "org-name": "<user-friendly-name>",
   "github-org": "<your-github-org>",
-  "cloudflare-account-id": "<your-cloudflare-account-id>",
+  "cloudflare-account-slug": "<cloudflare-account-slug>",
+  "cloudflare-account-id": "<your-cloudflare-account-id>"
 }
 ```
+
+* `cloudflare-account-slug` affects worker URLs (`GITHUB_APP_HOME`)
+* `cloudflare-account-affects` affects R2 bucket URLs (`S3_ENDPOINT`)
 
 ### 1. Generate deployment files
 
