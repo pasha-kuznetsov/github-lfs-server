@@ -4,6 +4,14 @@ description: Checkout, set up Bun, and install root dependencies (frozen lockfil
 runs:
   using: composite
   steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: "package.json"
     - uses: oven-sh/setup-bun@v2
     - run: bun install --frozen-lockfile
       shell: bash
+    - name: Cache bun dependencies
+      uses: actions/cache@v5
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
