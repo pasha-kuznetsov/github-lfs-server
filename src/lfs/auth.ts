@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from "hono";
 
 import { Octokit } from "@octokit/rest";
 
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 
 // Exported for unit testing — pure function, no I/O.
 export function extractToken(

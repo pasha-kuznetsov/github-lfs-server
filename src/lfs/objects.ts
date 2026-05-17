@@ -2,7 +2,7 @@ import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
 import assert from "assert";
 
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 import { batchRequestSchema, verifyRequestSchema } from "./_schema";
 
 // -----------------------------------------------------------------------------

@@ -7,6 +7,7 @@ export interface ObjectsStorageEnv {
   S3_SECRET_ACCESS_KEY: string;
   S3_BUCKET_NAME: string;
   S3_PRESIGN_TTL: string;
+  LFS_BUCKET?: R2Bucket;
 }
 
 export class ObjectsStorage {

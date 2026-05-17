@@ -1,5 +1,5 @@
 import { vi, describe, test, expect, afterEach } from "vitest";
-import { githubProxy as proxyApi } from "../../src/login/github-proxy";
+import { githubProxy as proxyApi } from "./github-proxy";
 
 // ---------------------------------------------------------------------------
 // GET /api/v3/meta

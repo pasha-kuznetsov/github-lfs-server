@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 import { authMiddleware } from "./auth";
 import { objectsApi } from "./objects";
 import { locksApi } from "./locks";
@@ -11,14 +11,10 @@ export const lfsApi = new Hono<AppEnv>();
 
 // All LFS API requests must carry Accept: application/vnd.git-lfs+json.
 // Strip charset suffix before comparing; wrong Accept → 404 (matches test server).
+// Use an explicit Response (not c.notFound()) so nested routes finalize under Workers.
 lfsApi.use("/:owner/:repo/*", async (c, next) => {
   const accept = (c.req.header("Accept") ?? "").split(";")[0].trim();
-  if (accept !== LFS_CONTENT_TYPE) return c.notFound();
-  await next();
-});
-
-// Set Content-Type on all LFS API responses.
-lfsApi.use("/:owner/:repo/*", async (c, next) => {
+  if (accept !== LFS_CONTENT_TYPE) return new Response(null, { status: 404 });
   await next();
   c.res.headers.set("Content-Type", LFS_CONTENT_TYPE);
 });

@@ -1,7 +1,7 @@
 import { sValidator } from "@hono/standard-validator";
 import { Context, Hono } from "hono";
 
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 import {
   createLockRequestSchema,
   lockVerifyRequestSchema,

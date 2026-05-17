@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import { Octokit } from "@octokit/rest";
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 import { decryptCode } from "./utils";
 
 export const SESSION_COOKIE = "gh_session_v2";

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 
 import { githubProxy } from "./github-proxy";
 import { deviceApi } from "./device";

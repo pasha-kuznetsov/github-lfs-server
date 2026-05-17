@@ -6,7 +6,7 @@ import {
   decryptCode,
   type StatePayload,
   type CodePayload,
-} from "../../src/login/utils";
+} from "./utils";
 
 // 64 hex chars = 32 bytes, valid for both HS256 and AES-256-GCM
 const SECRET = "a".repeat(64);

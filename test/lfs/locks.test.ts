@@ -8,7 +8,7 @@ afterEach(async () => {
 
 import { Hono } from "hono";
 import { locksApi } from "../../src/lfs/locks";
-import type { AppEnv } from "../../src/index";
+import type { AppEnv } from "../../src/app";
 
 function makeApp(user: string, access: "read" | "write" = "write") {
   const app = new Hono<AppEnv>();

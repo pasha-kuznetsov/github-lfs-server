@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
-import type { AppEnv } from "../index";
+import type { AppEnv } from "../app";
 import type { CodePayload } from "./utils";
 import { signState, verifyState, encryptCode } from "./utils";
 import { SESSION_COOKIE, SESSION_TTL } from "./web-auth";

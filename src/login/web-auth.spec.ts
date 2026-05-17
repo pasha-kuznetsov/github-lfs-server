@@ -1,8 +1,7 @@
 import { vi, describe, test, expect, beforeEach } from "vitest";
 import { Hono } from "hono";
-import type { AppEnv } from "../../src/index";
-import { encryptCode } from "../../src/login/utils";
-import { webAuthMiddleware, SESSION_COOKIE, SESSION_TTL } from "../../src/login/web-auth";
+import type { AppEnv } from "../app";
+import { encryptCode } from "./utils";
 
 // ---------------------------------------------------------------------------
 // Octokit mock — must be set up before web-auth.ts is imported
@@ -39,6 +38,9 @@ vi.mock("@octokit/rest", () => ({
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
+const { webAuthMiddleware, SESSION_COOKIE, SESSION_TTL } = await import(
+  "./web-auth"
+);
 
 const LOGIN_SECRET = "a".repeat(64);
 const TEST_ENV = {
