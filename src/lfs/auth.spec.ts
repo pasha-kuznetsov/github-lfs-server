@@ -110,6 +110,10 @@ describe("extractToken", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// authMiddleware — HTTP-level tests via Hono's app.request()
+// ---------------------------------------------------------------------------
+
 const TEST_ENV = { GITHUB_ORG: "TestOrg" } as unknown as CloudflareBindings;
 
 function makeApp() {
