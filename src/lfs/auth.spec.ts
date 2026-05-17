@@ -6,13 +6,13 @@ import type { AppEnv } from "../app";
 // Octokit mock — must be set up before auth.ts is imported
 // ---------------------------------------------------------------------------
 
-const mockState = vi.hoisted(() => ({
+const mockState = {
   authenticated: true,
   hasRepoAccess: true,
   hasWriteAccess: true,
   isMember: true,
   githubLogin: "alice",
-}));
+};
 
 vi.mock("@octokit/rest", () => ({
   Octokit: class {
