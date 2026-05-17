@@ -52,6 +52,10 @@ vi.mock("@octokit/rest", () => ({
 
 const { authMiddleware, extractToken } = await import("./auth");
 
+// ---------------------------------------------------------------------------
+// extractToken — pure function tests, no app needed
+// ---------------------------------------------------------------------------
+
 describe("extractToken", () => {
   describe("Basic scheme", () => {
     test("returns username and password from valid Basic credentials", () => {
