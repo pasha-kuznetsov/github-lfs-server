@@ -1,5 +1,5 @@
 {
-  "name": "github-lfs-server",
+  "name": "@git-lfs-hub/server",
   "type": "module",
   "scripts": {
     "types": "wrangler types --env-interface CloudflareBindings",
@@ -8,7 +8,7 @@
     "test:integration": "vitest run --project 'integration*'",
     "test:scripts": "vitest run --project 'scripts'",
     "test:watch": "vitest watch",
-    "prepare-deployment": "./scripts/run.sh prepare-deployment",
+    "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run --outdir dist",
     "deploy": "wrangler deploy --minify --outdir dist $(scripts/sentry-wrangler-args.sh)",
     "sentry:sourcemaps": "scripts/sentry-upload-sourcemaps.sh",

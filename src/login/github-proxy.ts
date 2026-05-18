@@ -28,7 +28,7 @@ const FORWARDED_RESPONSE_HEADERS = [
 
 const GITHUB_HEADERS = {
   Accept: "application/vnd.github+json",
-  "User-Agent": "github-lfs-server",
+  "User-Agent": "git-lfs-hub/server",
   "X-GitHub-Api-Version": "2022-11-28",
 };
 

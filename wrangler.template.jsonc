@@ -19,7 +19,7 @@
   "r2_buckets": [
     {
       "binding": "LFS_BUCKET",
-      "bucket_name": "lfs-objects",
+      "bucket_name": "{{s3.bucket}}",
     },
   ],
   "durable_objects": {
@@ -37,17 +37,19 @@
     },
   ],
   "vars": {
-    "S3_ENDPOINT": "https://{{cloudflareAccountId}}.r2.cloudflarestorage.com",
-    "S3_BUCKET_NAME": "lfs-objects",
+    "S3_ENDPOINT": "{{s3.endpoint}}",
+    "S3_BUCKET_NAME": "{{s3.bucket}}",
     "S3_PRESIGN_TTL": "3600",
-    "GITHUB_APP_HOME": "https://lfs-server.{{cloudflareAccountSlug}}.workers.dev",
-    "GITHUB_ORG": "{{githubOrg}}",
+    "GITHUB_APP_HOME": "{{github.appHome}}",
+    "GITHUB_ORG": "{{github.org}}",
     // Optional: one or more owner/org slugs (alternative to GITHUB_ORG for multi-org setups).
-    "GITHUB_ORGS": "{{githubOrgs}}",
+    "GITHUB_ORGS": "{{github.orgs}}",
     // Optional: comma/semicolon/space-separated GitHub logins allowed to access the dashboard.
-    "GITHUB_USERS": "{{githubUsers}}",
+    "GITHUB_USERS": "{{github.users}}",
     // Optional: override which :owner slugs are accepted in URLs (default: GITHUB_ORGS → GITHUB_ORG).
-    "GITHUB_OWNERS": "{{githubOwners}}",
+    "GITHUB_OWNERS": "{{github.owners}}",
+    // Optional: Sentry organization slug for error tracking.
+    "SENTRY_ORG": "{{sentry.org}}",
   },
   "secrets": {
     "required": [

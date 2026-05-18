@@ -122,7 +122,7 @@ describe("GET /api/v3/user", () => {
     await proxyApi.request("/v3/user");
     const headers = capturedHeaders(spy);
     expect(headers["Accept"]).toBe("application/vnd.github+json");
-    expect(headers["User-Agent"]).toBe("github-lfs-server");
+    expect(headers["User-Agent"]).toBe("git-lfs-hub/server");
     expect(headers["X-GitHub-Api-Version"]).toBe("2022-11-28");
   });
 });

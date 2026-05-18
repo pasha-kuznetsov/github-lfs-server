@@ -11,13 +11,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/init
 
-      - name: Write vars.json
-        run: printf '%s\n' "$VARS_JSON" > vars.json
-        env:
-          VARS_JSON: ${{ vars.VARS_JSON }}
+      - run: bun run test
 
-      - run: scripts/run.sh prepare-deployment
-
-      - run: bun run deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # TODO: notify deployment pipeline

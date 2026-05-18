@@ -1,99 +1,53 @@
-# github-lfs-server
+# Git LFS Hub Server
 
-A [Git LFS](https://git-lfs.com/) server running as a Cloudflare Worker. Stores objects in Cloudflare R2, authenticates via GitHub OAuth, and supports [file locking](https://github.com/git-lfs/git-lfs/wiki/File-Locking).
+A [Git LFS](https://git-lfs.com/) server running as a Cloudflare Worker. Stores objects in Cloudflare R2, authenticates via GitHub OAuth, and supports the full Git LFS API including [file locking](https://github.com/git-lfs/git-lfs/wiki/File-Locking).
 
-## Setup
+## Setup and Deployment
 
-### 0. Install Dependencies and create `vars.json`
+See [git-lfs-hub/deploy](https://github.com/git-lfs-hub/deploy).
 
-Install dependencies:
+## Architecture
 
-```sh
-bun install
-```
+**Entry:** `src/index.ts` → `src/app.ts`
 
-Create a `vars.json` file in the repository root (gitignored), for example:
+**Route structure:**
 
-```json
-{
-  "orgName": "<user-friendly-name>",
-  "githubOrgs": "<your-github-orgs>",
-  "cloudflareAccountSlug": "<cloudflare-account-slug>",
-  "cloudflareAccountId": "<your-cloudflare-account-id>"
-}
-```
+| Path | Handler | Description |
+|------|---------|-------------|
+| `/login/device` | `login/device.ts` | GitHub device flow (`gh`, `git-credential-manager`) |
+| `/login/oauth` | `login/oauth.ts`, `login/oauth-token.ts` | GitHub web OAuth + token exchange |
+| `/api/*` | `login/github-proxy.ts` | GitHub API proxy (device flow polling) |
+| `/:owner/:repo/objects/*` | `lfs/objects.ts` | LFS batch API — issues presigned R2 URLs |
+| `/:owner/:repo/locks/*` | `lfs/locks.ts` | LFS file locking (Durable Object) |
+| `/*` | ASSETS binding | Static docs site, behind web auth |
 
-or for personal account
-```json
-{
-  "orgName": "<user-friendly-name>",
-  "githubUsers": "<your-github-login>",
-  "githubOwners": "<your-github-login>",
-  "cloudflareAccountSlug": "<cloudflare-account-slug>",
-  "cloudflareAccountId": "<your-cloudflare-account-id>"
-}
-```
+**Bindings:**
 
-* `cloudflareAccountSlug` — sets the worker URL prefix (`GITHUB_APP_HOME`)
-* `cloudflareAccountId` — sets the R2 bucket URL (`S3_ENDPOINT`)
-* `githubOrg[s]` — if specified, only active members have access; up to 5 total (`GITHUB_ORG[s]`)
-* `githubUsers` — restricts access further to these specific logins, on top of any org membership check (`GITHUB_USERS`)
-* `githubOwners` — owner names accepted in LFS URLs; overrides `githubOrg[s]` for routing but not for access (`GITHUB_OWNERS`)
+| Binding | Type | Purpose |
+|---------|------|---------|
+| `LFS_BUCKET` | R2 | LFS object storage |
+| `LOCKS` | Durable Object (SQLite) | File lock state |
+| `ASSETS` | Static assets | Docs site |
 
-`githubOrg[s]`/`githubOwners` repos are served at `/<owner>/<repo>/`. At least one of `githubOrg[s]` or `githubOwners` must be set. List values (`githubOrgs`, `githubUsers`, `githubOwners`) accept a JSON array or a space- or comma-separated string.
-
-### 1. Generate deployment files
-
-Generate (gitignored) `wrangler.jsonc` and `github-app.md` from `wrangler.template.jsonc` and `github-app.template.md`:
-
-```sh
-scripts/run.sh prepare-deployment
-```
-
-### 2. Create an R2 API token
-
-- Account dashboard → R2 (not _Manage account_) → API tokens → Create API token
-  - Permissions: Object Read & Write
-  - Scope: the bucket named in `S3_BUCKET_NAME`
-
-```sh
-wrangler secret put S3_ACCESS_KEY_ID      # R2 Access Key ID
-wrangler secret put S3_SECRET_ACCESS_KEY  # R2 Secret Access Key
-```
-
-### 3. Register a GitHub OAuth App
-
-Follow the generated **`github-app.md`** (from **`github-app.template.md`**) to register your GitHub OAuth app.
-
-```sh
-wrangler secret put GITHUB_CLIENT_ID      # Client ID from GitHub
-wrangler secret put GITHUB_CLIENT_SECRET  # Client Secret from GitHub
-wrangler secret put LOGIN_SECRET          # run: openssl rand -hex 32
-```
-
-## Deploy
-
-### Locally
-
-After `vars.json` exists and secrets are set:
-
-```sh
-bun run deploy
-```
-
-### GitHub Actions
-
-* Set a repository variable **`VARS_JSON`** to your `vars.json` content.
-* Set a `CLOUDFLARE_API_TOKEN` secret to your Cloudflare token.
+Objects are transferred via presigned R2 URLs -- the Worker issues URLs but does not proxy object data. Auth uses GitHub OAuth (web + device flow) with JWT session tokens; access is gated by org membership and/or GitHub login allowlist. Sentry is loaded lazily if `SENTRY_DSN` is set.
 
 ## Development
 
+### Deploy repo pipeline
+
+In **git-lfs-hub/deploy**, `turbo init` renders `wrangler.jsonc` and related files at the repo root; `sync-server` symlinks them into `server/` and points `public/` at the docs build output. Run `turbo dev`, `turbo build`, or `turbo deploy` from the monorepo root so docs, config, and the Worker stay in sync (see [git-lfs-hub/deploy](https://github.com/git-lfs-hub/deploy)).
+
+### Standalone development
+
+Use this when you work from **git-lfs-hub/server** only. Keep local `wrangler.jsonc`, `worker-configuration.d.ts`, `vars.json`, and a `public/` tree (built docs or a minimal static site)—the deploy checkout normally supplies these via symlinks. Configure Wrangler secrets and R2 bindings for your account, then:
+
 ```sh
-bun run dev
+bun install
+bun run dev       # wrangler dev — local Worker
+bun run test      # vitest (unit + integration via @cloudflare/vitest-pool-workers)
+bun run types     # regenerate worker-configuration.d.ts after changing wrangler.jsonc bindings
 ```
 
-## Test
+### Standalone deployment
 
-```sh
-bun run test
-```
+With Cloudflare auth in place (`wrangler login` or `CLOUDFLARE_API_TOKEN`) and secrets applied (`wrangler secret put` for GitHub OAuth, R2 keys, `LOGIN_SECRET`, etc.), `bun run deploy` ships the Worker from this package. You own `public/` and binding definitions. Full releases that rebuild docs, render `vars`, and deploy in one step use **git-lfs-hub/deploy** (`turbo deploy`).
