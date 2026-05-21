@@ -4,12 +4,15 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "lfs-server",
+  "name": "{{cloudflare.workerName}}",
   "main": "src/index.ts",
   "compatibility_date": "2026-05-08",
   "assets": {
     "binding": "ASSETS",
     "directory": "./public",
+    // Force Worker to handle every request so webAuthMiddleware always runs.
+    // Without this, Cloudflare serves matching static assets directly and bypasses auth.
+    "run_worker_first": true,
   },
   "observability": {
     "enabled": true,
