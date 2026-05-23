@@ -3,8 +3,8 @@ name: Coverage
 on:
   workflow_run:
     workflows: [Main]
+    branches: [main]
     types: [completed]
-    branches: [main, pasha/coverage]
   workflow_dispatch:
 
 concurrency: { group: pages, cancel-in-progress: false }
