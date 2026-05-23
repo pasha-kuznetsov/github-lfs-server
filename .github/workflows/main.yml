@@ -1,8 +1,8 @@
 name: Main
 
 on:
-  push: { branches: [main] }
   pull_request:
+  push: { branches: [main] }
   workflow_dispatch: # Can run manually from the Actions tab
 
 permissions: {}
@@ -20,5 +20,5 @@ jobs:
       - run: bun run test --coverage
 
       - id: deployment
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with: { path: ./coverage }
