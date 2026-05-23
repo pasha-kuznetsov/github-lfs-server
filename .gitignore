@@ -29,6 +29,7 @@ node_modules/
 .turbo
 
 # logs
+coverage/
 logs/
 *.log
 npm-debug.log*
