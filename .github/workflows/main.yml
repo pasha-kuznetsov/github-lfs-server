@@ -5,6 +5,8 @@ on:
   pull_request:
   workflow_dispatch: # Can run manually from the Actions tab
 
+permissions: {}
+
 jobs:
   test:
     name: Test
