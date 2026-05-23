@@ -66,11 +66,11 @@ With Cloudflare auth in place (`wrangler login` or `CLOUDFLARE_API_TOKEN`) and s
 [ci-badge]: https://badgen.net/github/checks/git-lfs-hub/server/main/CI%20%2F%20Test?icon=vitest&label=CI
 [gh-wf-href]: https://github.com/git-lfs-hub/deploy/actions/workflows/main.yml
 
-[socket-badge]: https://badgen.net/github/checks/git-lfs-hub/server/main/Socket%20Security%3A%20Project%20Report?icon=socket
-[socket-href]: https://socket.dev/dashboard/org/git-lfs-hub/repo/@git-lfs-hub/server
-
 [codeql-badge]: https://github.com/git-lfs-hub/server/actions/workflows/github-code-scanning/codeql/badge.svg
 [codeql-href]: https://github.com/git-lfs-hub/server/actions/workflows/github-code-scanning/codeql
+
+[socket-badge]: https://badgen.net/static/Socket/report/blue?icon=socket
+[socket-href]: https://socket.dev/dashboard/org/git-lfs-hub/repo/@git-lfs-hub/server
 
 [license-badge]: https://badgen.net/github/license/git-lfs-hub/server
 [license-href]: LICENSE.md
