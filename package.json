@@ -26,17 +26,17 @@
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "handlebars": "^4.7.9",
-    "hono": "^4.12.18",
+    "hono": "^4.12.22",
     "jose": "^6.2.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.3",
-    "@sentry/cli": "^2",
+    "@cloudflare/vitest-pool-workers": "^0.16.9",
+    "@sentry/cli": "^3.4.3",
     "@types/handlebars": "^4.1.0",
-    "@types/node": "^25.6.2",
-    "miniflare": "^4.20260507.1",
-    "vitest": "^4.1.5",
-    "wrangler": "^4.90.0"
+    "@types/node": "^25.9.1",
+    "miniflare": "^4.20260521.0",
+    "vitest": "^4.1.7",
+    "wrangler": "^4.94.0"
   }
 }
