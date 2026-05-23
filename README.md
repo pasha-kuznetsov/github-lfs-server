@@ -1,8 +1,8 @@
 # Git LFS Hub — server
 
 [![CI][ci-badge]][gh-wf-href]
-[![Socket][socket-badge]][socket-href]
 [![CodeQL][codeql-badge]][codeql-href]
+[![Socket][socket-badge]][socket-href]
 [![License][license-badge]][license-href]
 
 The Cloudflare Worker at the heart of [Git LFS Hub](https://github.com/git-lfs-hub) — a [Hono](https://hono.dev/) app implementing the full [Git LFS](https://git-lfs.com/) batch API, GitHub OAuth (web + device flow), presigned R2 URLs for object transfer, and a Durable Object lock store for [file locking](https://github.com/git-lfs/git-lfs/wiki/File-Locking).
@@ -69,7 +69,7 @@ With Cloudflare auth in place (`wrangler login` or `CLOUDFLARE_API_TOKEN`) and s
 [codeql-badge]: https://github.com/git-lfs-hub/server/actions/workflows/github-code-scanning/codeql/badge.svg
 [codeql-href]: https://github.com/git-lfs-hub/server/actions/workflows/github-code-scanning/codeql
 
-[socket-badge]: https://badgen.net/static/Socket/report/blue?icon=socket
+[socket-badge]: https://badgen.net/static/socket/report/blue?icon=socket
 [socket-href]: https://socket.dev/dashboard/org/git-lfs-hub/repo/@git-lfs-hub/server
 
 [license-badge]: https://badgen.net/github/license/git-lfs-hub/server
