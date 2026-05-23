@@ -20,8 +20,8 @@ jobs:
 
       - uses: git-lfs-hub/ci-cd/actions/coverage-artifact@main
 
-  coverage-pages:
+  coverage-deploy:
     name: Coverage
     needs: test
-    uses: git-lfs-hub/ci-cd/.github/workflows/coverage-pages.yml@main
+    uses: git-lfs-hub/ci-cd/.github/workflows/coverage-deploy.yml@main
     permissions: { contents: read, pages: write, id-token: write }
