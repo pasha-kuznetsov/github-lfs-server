@@ -17,16 +17,6 @@ jobs:
 
       - run: bun run test-coverage
 
-      - name: Download Main Coverage
-        run: |
-          mkdir coverage/main
-          curl -L https://git-lfs-hub.github.io/server/coverage-summary.json -o coverage/main/coverage-summary.json
-          curl -L https://git-lfs-hub.github.io/server/coverage-final.json -o coverage/main/coverage-final.json
-        continue-on-error: true
-
-      - name: Report Coverage
-        uses: davelosert/vitest-coverage-report-action@v2
+      - uses: git-lfs-hub/ci-cd/actions/coverage-report@pasha/coverage
         with:
-          file-coverage-mode: changes-affected
-          json-summary-compare-path: coverage/main/coverage-summary.json
-          threshold-icons: "{90: '🟢', 80: '🟡', 50: '🟠', 1: '🔴', 0: '⬜'}"
+          coverage-url: https://git-lfs-hub.github.io/server
