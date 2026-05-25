@@ -20,6 +20,7 @@
     "node": "^26.1.0"
   },
   "dependencies": {
+    "@git-lfs-hub/auth": "file:../auth",
     "@hono/standard-validator": "^0.2.2",
     "@octokit/rest": "^22.0.1",
     "@sentry/cloudflare": "^10.53.1",

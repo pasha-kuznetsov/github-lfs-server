@@ -1,6 +1,6 @@
 import { vi, describe, test, expect, afterEach } from "vitest";
 import { oauthApi } from "./oauth";
-import { verifyState, decryptCode } from "./utils";
+import { verifyState, decryptSession } from "@git-lfs-hub/auth";
 
 const LOGIN_SECRET = "a".repeat(64);
 const TEST_ENV = {
@@ -158,7 +158,7 @@ describe("GET /callback", () => {
     const location = new URL(res.headers.get("Location")!);
     const ephemeralCode = location.searchParams.get("code")!;
 
-    const decoded = await decryptCode(ephemeralCode, LOGIN_SECRET);
+    const decoded = await decryptSession(ephemeralCode, LOGIN_SECRET);
     expect(decoded).not.toBeNull();
     expect(decoded!.token).toBe("ghu_real_token");
   });
@@ -173,7 +173,7 @@ describe("GET /callback", () => {
     const location = new URL(res.headers.get("Location")!);
     const ephemeralCode = location.searchParams.get("code")!;
 
-    const decoded = await decryptCode(ephemeralCode, LOGIN_SECRET);
+    const decoded = await decryptSession(ephemeralCode, LOGIN_SECRET);
     expect(decoded!.refresh_token).toBe("ghr_refresh");
   });
 
@@ -187,7 +187,7 @@ describe("GET /callback", () => {
     const location = new URL(res.headers.get("Location")!);
     const ephemeralCode = location.searchParams.get("code")!;
 
-    const decoded = await decryptCode(ephemeralCode, LOGIN_SECRET);
+    const decoded = await decryptSession(ephemeralCode, LOGIN_SECRET);
     expect(decoded!.refresh_token).toBeUndefined();
   });
 

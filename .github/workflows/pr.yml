@@ -13,10 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: git-lfs-hub/ci-cd/actions/init-bun@main
+      - uses: git-lfs-hub/ci-cd/actions/init@main
+        with: { peers: auth }
 
       - run: bun run test-coverage
 
       - uses: git-lfs-hub/ci-cd/actions/coverage-report@main
-        with:
-          coverage-url: https://git-lfs-hub.github.io/server

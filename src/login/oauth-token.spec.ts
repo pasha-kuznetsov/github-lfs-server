@@ -1,7 +1,7 @@
 import { vi, describe, test, expect, afterEach } from "vitest";
 import { tokenApi } from "./oauth-token";
 import { oauthApi } from "./oauth";
-import { encryptCode } from "./utils";
+import { encryptSession } from "@git-lfs-hub/auth";
 
 const LOGIN_SECRET = "a".repeat(64);
 const TEST_ENV = {
@@ -148,7 +148,7 @@ describe("POST /login/oauth/access_token — refresh token grant", () => {
 
 describe("POST /login/oauth/access_token — auth code grant", () => {
   test("returns token when ephemeral code is valid", async () => {
-    const code = await encryptCode({ token: "ghu_real" }, LOGIN_SECRET);
+    const code = await encryptSession({ token: "ghu_real" }, LOGIN_SECRET);
     const res = await post({ code });
     expect(res.status).toBe(200);
     const body = await res.json() as any;
@@ -158,7 +158,7 @@ describe("POST /login/oauth/access_token — auth code grant", () => {
   });
 
   test("includes refresh_token when ephemeral code contains one", async () => {
-    const code = await encryptCode({ token: "ghu_real", refresh_token: "ghr_abc" }, LOGIN_SECRET);
+    const code = await encryptSession({ token: "ghu_real", refresh_token: "ghr_abc" }, LOGIN_SECRET);
     const res = await post({ code });
     expect(res.status).toBe(200);
     const body = await res.json() as any;
@@ -167,14 +167,14 @@ describe("POST /login/oauth/access_token — auth code grant", () => {
   });
 
   test("omits refresh_token when ephemeral code does not contain one", async () => {
-    const code = await encryptCode({ token: "ghu_real" }, LOGIN_SECRET);
+    const code = await encryptSession({ token: "ghu_real" }, LOGIN_SECRET);
     const res = await post({ code });
     const body = await res.json() as any;
     expect(body.refresh_token).toBeUndefined();
   });
 
   test("returns 400 for a tampered ephemeral code", async () => {
-    const code = await encryptCode({ token: "ghu_real" }, LOGIN_SECRET);
+    const code = await encryptSession({ token: "ghu_real" }, LOGIN_SECRET);
     const parts = code.split(".");
     parts[3] = (parts[3][0] === "A" ? "B" : "A") + parts[3].slice(1);
     const res = await post({ code: parts.join(".") });
@@ -183,7 +183,7 @@ describe("POST /login/oauth/access_token — auth code grant", () => {
   });
 
   test("returns 400 for an expired ephemeral code", async () => {
-    const code = await encryptCode({ token: "ghu_real" }, LOGIN_SECRET, -1);
+    const code = await encryptSession({ token: "ghu_real" }, LOGIN_SECRET, -1);
     const res = await post({ code });
     expect(res.status).toBe(400);
     expect((await res.json() as any).error).toBe("invalid_grant");
