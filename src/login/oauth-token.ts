@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
-import { decryptCode } from "./utils";
+import { decryptSession } from "@git-lfs-hub/auth";
 
 export const tokenApi = new Hono<AppEnv>();
 
@@ -32,7 +32,7 @@ tokenApi.post("/access_token", async (c) => {
   }
 
   if (typeof code === "string") {
-    const payload = await decryptCode(code, c.env.LOGIN_SECRET);
+    const payload = await decryptSession(code, c.env.LOGIN_SECRET);
     if (!payload) return c.json({ error: "invalid_grant" }, 400);
     return c.json({
       access_token: payload.token,

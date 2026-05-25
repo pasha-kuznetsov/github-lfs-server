@@ -1,45 +1,16 @@
 import { vi, describe, test, expect, beforeEach } from "vitest";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
-import { encryptCode } from "./utils";
 
-// ---------------------------------------------------------------------------
-// Octokit mock — must be set up before web-auth.ts is imported
-// ---------------------------------------------------------------------------
+const mockValidateSession = vi.fn();
+const mockCheckOrgRole = vi.fn();
 
-const mockState = vi.hoisted(() => ({
-  authenticated: true,
-  isMember: true,
-  memberState: "active",
-  githubLogin: "alice",
+vi.mock("@git-lfs-hub/auth", () => ({
+  validateSession: mockValidateSession,
+  checkOrgRole: mockCheckOrgRole,
 }));
 
-vi.mock("@octokit/rest", () => ({
-  Octokit: class {
-    rest = {
-      users: {
-        getAuthenticated: async () => {
-          if (!mockState.authenticated)
-            throw Object.assign(new Error("Unauthorized"), { status: 401 });
-          return { data: { login: mockState.githubLogin } };
-        },
-      },
-      orgs: {
-        getMembershipForAuthenticatedUser: async () => {
-          if (!mockState.isMember)
-            throw Object.assign(new Error("Not a member"), { status: 404 });
-          return { data: { state: mockState.memberState } };
-        },
-      },
-    };
-  },
-}));
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-const { webAuthMiddleware, SESSION_COOKIE, SESSION_TTL } =
-  await import("./web-auth");
+const { webAuthMiddleware, SESSION_COOKIE, SESSION_TTL } = await import("./web-auth");
 
 const LOGIN_SECRET = "a".repeat(64);
 const TEST_ENV = {
@@ -48,99 +19,63 @@ const TEST_ENV = {
   GITHUB_ORG: "TestOrg",
 } as unknown as CloudflareBindings;
 
-function makeApp() {
+function makeApp(env = TEST_ENV) {
   const hono = new Hono<AppEnv>();
   hono.get("/*", webAuthMiddleware, (c) =>
     c.json({ ok: true, user: c.get("user") }),
   );
-  return {
-    request: (url: string, init?: RequestInit) =>
-      hono.request(url, init, TEST_ENV),
-  };
+  return (url: string, init?: RequestInit) => hono.request(url, init, env);
 }
 
 const app = makeApp();
 
-async function sessionCookie(token = "ghu_token") {
-  const val = await encryptCode({ token }, LOGIN_SECRET, SESSION_TTL);
-  return `${SESSION_COOKIE}=${val}`;
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("webAuthMiddleware", () => {
   beforeEach(() => {
-    mockState.authenticated = true;
-    mockState.isMember = true;
-    mockState.memberState = "active";
-    mockState.githubLogin = "alice";
+    vi.resetAllMocks();
+    mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "alice" });
+    mockCheckOrgRole.mockResolvedValue("member");
   });
 
   describe("unauthenticated → redirects to login", () => {
-    test("no cookie returns 302", async () => {
-      const res = await app.request("http://w/");
+    test("no session returns 302", async () => {
+      mockValidateSession.mockResolvedValue(null);
+      const res = await app("http://w/");
       expect(res.status).toBe(302);
     });
 
     test("redirect points to /login/oauth/authorize", async () => {
-      const res = await app.request("http://w/");
+      mockValidateSession.mockResolvedValue(null);
+      const res = await app("http://w/");
       expect(res.headers.get("Location")).toContain("/login/oauth/authorize");
     });
 
     test("redirect encodes GITHUB_APP_HOME as redirect_uri", async () => {
-      const res = await app.request("http://w/");
+      mockValidateSession.mockResolvedValue(null);
+      const res = await app("http://w/");
       expect(res.headers.get("Location")).toContain(
         encodeURIComponent("https://example.com/"),
       );
     });
 
     test("redirect requests read:org scope", async () => {
-      const res = await app.request("http://w/");
+      mockValidateSession.mockResolvedValue(null);
+      const res = await app("http://w/");
       const location = new URL(res.headers.get("Location")!, "http://w");
       expect(location.searchParams.get("scope")).toBe("read:org");
-    });
-
-    test("invalid cookie returns 302", async () => {
-      const res = await app.request("http://w/", {
-        headers: { Cookie: `${SESSION_COOKIE}=not-a-valid-token` },
-      });
-      expect(res.status).toBe(302);
-    });
-
-    test("invalid GitHub token returns 302", async () => {
-      mockState.authenticated = false;
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
-      expect(res.status).toBe(302);
     });
   });
 
   describe("org membership", () => {
     test("non-member returns 403", async () => {
-      mockState.isMember = false;
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
-      expect(res.status).toBe(403);
-    });
-
-    test("pending membership returns 403", async () => {
-      mockState.memberState = "pending";
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockCheckOrgRole.mockResolvedValue(null);
+      const res = await app("http://w/");
       expect(res.status).toBe(403);
     });
 
     test("403 body names the user and org", async () => {
-      mockState.isMember = false;
-      mockState.githubLogin = "bob";
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "bob" });
+      mockCheckOrgRole.mockResolvedValue(null);
+      const res = await app("http://w/");
       const body = await res.text();
       expect(body).toContain("bob");
       expect(body).toContain("TestOrg");
@@ -154,71 +89,56 @@ describe("webAuthMiddleware", () => {
       GITHUB_USER: "carol",
     } as unknown as CloudflareBindings;
 
-    function appWith(env: unknown) {
-      const hono = new Hono<AppEnv>();
-      hono.get("/*", webAuthMiddleware, (c) =>
-        c.json({ ok: true, user: c.get("user") }),
-      );
-      return (url: string, init?: RequestInit) => hono.request(url, init, env);
-    }
-
     test("matching user is allowed without org check", async () => {
-      mockState.githubLogin = "carol";
-      mockState.isMember = false;
-      const res = await appWith(envUser)("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "carol" });
+      const res = await makeApp(envUser)("http://w/");
       expect(res.status).toBe(200);
+      expect(mockCheckOrgRole).not.toHaveBeenCalled();
     });
 
     test("non-matching user is denied", async () => {
-      mockState.githubLogin = "alice";
-      const res = await appWith(envUser)("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "alice" });
+      const res = await makeApp(envUser)("http://w/");
       expect(res.status).toBe(403);
     });
 
     test("match is case-insensitive", async () => {
-      mockState.githubLogin = "Carol";
-      const res = await appWith(envUser)("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "Carol" });
+      const res = await makeApp(envUser)("http://w/");
       expect(res.status).toBe(200);
     });
   });
 
   describe("localhost bypass", () => {
     test("localhost requests skip auth entirely", async () => {
-      mockState.authenticated = false;
-      const res = await app.request("http://localhost/");
+      const res = await app("http://localhost/");
       expect(res.status).toBe(200);
+      expect(mockValidateSession).not.toHaveBeenCalled();
     });
   });
 
   describe("successful auth", () => {
     test("active member passes through with 200", async () => {
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      const res = await app("http://w/");
       expect(res.status).toBe(200);
     });
 
     test("sets c.var.user to the GitHub login", async () => {
-      mockState.githubLogin = "gh-alice";
-      const res = await app.request("http://w/", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      mockValidateSession.mockResolvedValue({ token: "ghu_token", username: "gh-alice" });
+      const res = await app("http://w/");
       const body = (await res.json()) as { user: string };
       expect(body.user).toBe("gh-alice");
     });
 
     test("URL with query params redirects to clean pathname", async () => {
-      const res = await app.request("http://w/?code=ephemeral&state=xyz", {
-        headers: { Cookie: await sessionCookie() },
-      });
+      const res = await app("http://w/?code=ephemeral&state=xyz");
       expect(res.status).toBe(302);
       expect(res.headers.get("Location")).toBe("/");
     });
   });
+});
+
+test("SESSION_COOKIE and SESSION_TTL are exported", () => {
+  expect(typeof SESSION_COOKIE).toBe("string");
+  expect(typeof SESSION_TTL).toBe("number");
 });

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import type { AppEnv } from "../app";
-import type { CodePayload } from "./utils";
-import { signState, verifyState, encryptCode } from "./utils";
+import type { SessionPayload } from "@git-lfs-hub/auth";
+import { signState, verifyState, buildAuthorizeUrl, exchangeCode, encryptSession } from "@git-lfs-hub/auth";
 import { SESSION_COOKIE, SESSION_TTL } from "./web-auth";
 
 // ---------------------------------------------------------------------------
@@ -29,14 +29,10 @@ oauthApi.get("/authorize", async (c) => {
     c.env.LOGIN_SECRET,
   );
 
-  const githubUrl = new URL("https://github.com/login/oauth/authorize");
-  githubUrl.searchParams.set("client_id", c.env.GITHUB_CLIENT_ID);
-  githubUrl.searchParams.set("redirect_uri", callbackUrl);
-  if (scope) githubUrl.searchParams.set("scope", scope);
-  githubUrl.searchParams.set("state", signedState);
-  if (login) githubUrl.searchParams.set("login", login);
-
-  return c.redirect(githubUrl.toString(), 302);
+  return c.redirect(
+    buildAuthorizeUrl(c.env.GITHUB_CLIENT_ID, callbackUrl, signedState, { scope, login }),
+    302,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -50,28 +46,18 @@ oauthApi.get("/callback", async (c) => {
 
   if (!signedState) return c.json({ error: "invalid_state" }, 400);
 
-  const payload = await verifyState(signedState, c.env.LOGIN_SECRET);
-  if (!payload) return c.json({ error: "invalid_state" }, 400);
+  const statePayload = await verifyState(signedState, c.env.LOGIN_SECRET);
+  if (!statePayload) return c.json({ error: "invalid_state" }, 400);
 
-  const { redirect_uri, client_state } = payload;
+  const { redirect_uri, client_state } = statePayload;
+  const callbackUrl = `${c.env.GITHUB_APP_HOME}/login/oauth/callback`;
 
-  const upstream = new URLSearchParams({
-    client_id: c.env.GITHUB_CLIENT_ID,
-    client_secret: c.env.GITHUB_CLIENT_SECRET,
-    code: ghCode ?? "",
-    redirect_uri: `${c.env.GITHUB_APP_HOME}/login/oauth/callback`,
-  });
-
-  const res = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: upstream,
-  });
-
-  const data = (await res.json()) as Record<string, string>;
+  const data = await exchangeCode(
+    c.env.GITHUB_CLIENT_ID,
+    c.env.GITHUB_CLIENT_SECRET,
+    ghCode ?? "",
+    callbackUrl,
+  );
 
   if (data.error) {
     const errUrl = new URL(redirect_uri);
@@ -80,12 +66,12 @@ oauthApi.get("/callback", async (c) => {
     return c.redirect(errUrl.toString(), 302);
   }
 
-  const tokenPayload: CodePayload = { token: data.access_token };
+  const tokenPayload: SessionPayload = { token: data.access_token };
   if (typeof data.refresh_token === "string") tokenPayload.refresh_token = data.refresh_token;
 
-  const ephemeralCode = await encryptCode(tokenPayload, c.env.LOGIN_SECRET);
+  const ephemeralCode = await encryptSession(tokenPayload, c.env.LOGIN_SECRET);
 
-  setCookie(c, SESSION_COOKIE, await encryptCode(tokenPayload, c.env.LOGIN_SECRET, SESSION_TTL), {
+  setCookie(c, SESSION_COOKIE, await encryptSession(tokenPayload, c.env.LOGIN_SECRET, SESSION_TTL), {
     httpOnly: true,
     sameSite: "Lax",
     secure: true,
