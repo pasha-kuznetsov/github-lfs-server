@@ -31,12 +31,20 @@
         "name": "LOCKS",
         "class_name": "Locks",
       },
+      {
+        "name": "ADMIN",
+        "class_name": "Admin",
+      },
     ],
   },
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["Locks"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["Admin"],
     },
   ],
   "services": [

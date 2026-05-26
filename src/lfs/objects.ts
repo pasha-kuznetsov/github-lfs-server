@@ -41,6 +41,13 @@ objectsApi.post(
       );
     }
 
+    if (c.env.ADMIN) {
+      const blocked = await c.env.ADMIN.getByName(`${owner}/${repo}`).isBlocked();
+      if (blocked) {
+        return c.json({ message: "Repository not found", request_id: crypto.randomUUID() }, 404);
+      }
+    }
+
     const bucket = c.get("objects");
     const results = await Promise.all(
       objects.map(async (obj) => {

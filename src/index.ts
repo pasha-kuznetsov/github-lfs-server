@@ -20,3 +20,5 @@ export default app;
 
 // required for Wrangler
 export { Locks } from "./db/locks";
+export { Admin } from "./db/admin";
+export { AdminEntrypoint } from "./admin/entrypoint";
