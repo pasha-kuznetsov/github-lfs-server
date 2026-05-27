@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 import { Hono } from "hono";
 
 import type { AppEnv } from "../app";
@@ -95,5 +95,80 @@ describe("verifyHandler", () => {
       },
     );
     expect(res.status).toBe(422);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GC Ingest
+// ---------------------------------------------------------------------------
+
+describe("verify admin ingest", () => {
+  const execCtx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() } as unknown as ExecutionContext;
+
+  test("calls LFS_ADMIN.ingest on successful verify", async () => {
+    const ingest = vi.fn().mockResolvedValue(undefined);
+    const res = await makeApp({ "alice/repo/abc123": 42 }).request(
+      "http://worker/lfs/alice/repo/objects/verify",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({ oid: "abc123", size: 42 }),
+      },
+      { LFS_ADMIN: { ingest } } as any,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+    expect(ingest).toHaveBeenCalledWith({
+      owner: "alice",
+      repo: "repo",
+      oid: "abc123",
+      size: 42,
+      event: "upload",
+    });
+  });
+
+  test("does not call ingest when verify fails", async () => {
+    const ingest = vi.fn().mockResolvedValue(undefined);
+    const res = await makeApp({}).request(
+      "http://worker/lfs/alice/repo/objects/verify",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({ oid: "missing", size: 10 }),
+      },
+      { LFS_ADMIN: { ingest } } as any,
+      execCtx,
+    );
+    expect(res.status).toBe(422);
+    expect(ingest).not.toHaveBeenCalled();
+  });
+
+  test("succeeds when LFS_ADMIN is absent", async () => {
+    const res = await makeApp({ "alice/repo/abc123": 42 }).request(
+      "http://worker/lfs/alice/repo/objects/verify",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({ oid: "abc123", size: 42 }),
+      },
+      {} as any,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("succeeds when ingest throws", async () => {
+    const ingest = vi.fn().mockRejectedValue(new Error("boom"));
+    const res = await makeApp({ "alice/repo/abc123": 42 }).request(
+      "http://worker/lfs/alice/repo/objects/verify",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({ oid: "abc123", size: 42 }),
+      },
+      { LFS_ADMIN: { ingest } } as any,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
   });
 });

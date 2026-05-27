@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import type { AppEnv } from "../app";
-import type { SessionPayload } from "@git-lfs-hub/auth";
-import { signState, verifyState, buildAuthorizeUrl, exchangeCode, encryptSession } from "@git-lfs-hub/auth";
-import { SESSION_COOKIE, SESSION_TTL } from "./web-auth";
+import { signState, buildAuthorizeUrl, encryptSession, processOAuthCallback, buildOAuthErrorRedirectUrl, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@git-lfs-hub/auth";
 
 // ---------------------------------------------------------------------------
 // OAuth (browser) login flow
@@ -46,40 +44,29 @@ oauthApi.get("/callback", async (c) => {
 
   if (!signedState) return c.json({ error: "invalid_state" }, 400);
 
-  const statePayload = await verifyState(signedState, c.env.LOGIN_SECRET);
-  if (!statePayload) return c.json({ error: "invalid_state" }, 400);
-
-  const { redirect_uri, client_state } = statePayload;
-  const callbackUrl = `${c.env.GITHUB_APP_HOME}/login/oauth/callback`;
-
-  const data = await exchangeCode(
-    c.env.GITHUB_CLIENT_ID,
-    c.env.GITHUB_CLIENT_SECRET,
-    ghCode ?? "",
-    callbackUrl,
-  );
-
-  if (data.error) {
-    const errUrl = new URL(redirect_uri);
-    errUrl.searchParams.set("error", data.error);
-    if (client_state) errUrl.searchParams.set("state", client_state);
-    return c.redirect(errUrl.toString(), 302);
-  }
-
-  const tokenPayload: SessionPayload = { token: data.access_token };
-  if (typeof data.refresh_token === "string") tokenPayload.refresh_token = data.refresh_token;
-
-  const ephemeralCode = await encryptSession(tokenPayload, c.env.LOGIN_SECRET);
-
-  setCookie(c, SESSION_COOKIE, await encryptSession(tokenPayload, c.env.LOGIN_SECRET, SESSION_TTL), {
-    httpOnly: true,
-    sameSite: "Lax",
-    secure: true,
-    path: "/",
-    maxAge: SESSION_TTL,
+  const result = await processOAuthCallback({
+    code: ghCode ?? "",
+    state: signedState,
+    secret: c.env.LOGIN_SECRET,
+    clientId: c.env.GITHUB_CLIENT_ID,
+    clientSecret: c.env.GITHUB_CLIENT_SECRET,
+    callbackUrl: `${c.env.GITHUB_APP_HOME}/login/oauth/callback`,
   });
 
+  if (!result.ok) {
+    if (result.statePayload) {
+      return c.redirect(buildOAuthErrorRedirectUrl(result.error, result.statePayload), 302);
+    }
+    return c.json({ error: result.error }, 400);
+  }
+
+  const { encrypted, tokenPayload, statePayload } = result;
+  const { redirect_uri, client_state } = statePayload;
+
+  setCookie(c, SESSION_COOKIE, encrypted, SESSION_COOKIE_OPTIONS);
+
   const redirectUrl = new URL(redirect_uri);
+  const ephemeralCode = await encryptSession(tokenPayload, c.env.LOGIN_SECRET);
   redirectUrl.searchParams.set("code", ephemeralCode);
   if (client_state) redirectUrl.searchParams.set("state", client_state);
 

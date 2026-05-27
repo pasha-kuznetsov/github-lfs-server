@@ -74,4 +74,8 @@ export class Locks extends DurableObject {
   async delete(uuid: string): Promise<void> {
     await this.db.delete(locks).where(eq(locks.uuid, uuid));
   }
+
+  async purge(): Promise<void> {
+    await this.ctx.storage.deleteAll();
+  }
 }

@@ -8,9 +8,12 @@ const mockCheckOrgRole = vi.fn();
 vi.mock("@git-lfs-hub/auth", () => ({
   validateSession: mockValidateSession,
   checkOrgRole: mockCheckOrgRole,
+  SESSION_COOKIE: "gh_session_v2",
+  SESSION_TTL: 86400,
 }));
 
-const { webAuthMiddleware, SESSION_COOKIE, SESSION_TTL } = await import("./web-auth");
+const { webAuthMiddleware } = await import("./web-auth");
+const { SESSION_COOKIE, SESSION_TTL } = await import("@git-lfs-hub/auth");
 
 const LOGIN_SECRET = "a".repeat(64);
 const TEST_ENV = {

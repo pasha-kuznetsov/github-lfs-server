@@ -193,3 +193,16 @@ describe("delete", () => {
     expect(await repo().getById(b.uuid)).not.toBeNull();
   });
 });
+
+describe("purge", () => {
+  test("resolves without error", async () => {
+    await repo().create("alice", "a.bin");
+    await repo().create("alice", "b.bin");
+    await expect(repo().purge()).resolves.toBeUndefined();
+  });
+
+  test("is idempotent", async () => {
+    await repo().purge();
+    await expect(repo().purge()).resolves.toBeUndefined();
+  });
+});

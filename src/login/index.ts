@@ -11,9 +11,11 @@ export const loginApi = new Hono<AppEnv>();
 
 loginApi.use("/*", async (c, next) => {
   if (c.env) {
-    const missing = (
-      ["GITHUB_APP_HOME", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"] as const
-    ).filter((key) => !c.env[key]);
+    const isDev = (c.env as { DEV?: string }).DEV === "1";
+    const required = isDev
+      ? (["GITHUB_APP_HOME"] as const)
+      : (["GITHUB_APP_HOME", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"] as const);
+    const missing = required.filter((key) => !c.env[key]);
     if (missing.length)
       throw new Error(
         `Missing required vars: ${missing.join(", ")} — set them in .dev.vars (local) or via wrangler secret put (production)`,

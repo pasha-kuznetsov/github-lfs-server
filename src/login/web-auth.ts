@@ -1,11 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../app";
-import { validateSession, checkOrgRole } from "@git-lfs-hub/auth";
+import { validateSession, checkOrgRole, SESSION_COOKIE, SESSION_TTL } from "@git-lfs-hub/auth";
 import { orgsFromEnv } from "./utils";
-
-export const SESSION_COOKIE = "gh_session_v2";
-export const SESSION_TTL = 86400; // 1 day
 
 export const webAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (new URL(c.req.url).hostname === "localhost") return next();

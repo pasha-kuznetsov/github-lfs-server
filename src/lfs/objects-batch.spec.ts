@@ -1,11 +1,11 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 import { Hono } from "hono";
 import { objectsApi } from "./objects";
 import { ObjectsStorage } from "../storage/objects";
 import type { AppEnv } from "../app";
 import { emptyR2Bucket } from "../test/r2-bucket-mock";
 
-function makeEnv() {
+function makeEnv(overrides?: Record<string, unknown>) {
   return {
     LFS_BUCKET: emptyR2Bucket(),
     S3_ENDPOINT: "https://test-account.r2.cloudflarestorage.com",
@@ -13,6 +13,7 @@ function makeEnv() {
     S3_SECRET_ACCESS_KEY: "test-secret",
     S3_BUCKET_NAME: "lfs-objects",
     S3_PRESIGN_TTL: "3600",
+    ...overrides,
   } as any;
 }
 
@@ -201,5 +202,112 @@ describe("request validation", () => {
       makeEnv(),
     );
     expect(res.status).toBe(422);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GC Ingest
+// ---------------------------------------------------------------------------
+
+describe("batch admin ingest", () => {
+  const execCtx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() } as unknown as ExecutionContext;
+
+  test("calls LFS_ADMIN.ingest on download with objects", async () => {
+    const ingest = vi.fn().mockResolvedValue(undefined);
+    const env = makeEnv({ LFS_ADMIN: { ingest } });
+    const res = await app.request(
+      "http://worker/lfs/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "abc123", size: 77 }],
+        }),
+      },
+      env,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+    expect(ingest).toHaveBeenCalledWith({
+      owner: "alice",
+      repo: "repo",
+      oid: "abc123",
+      size: 77,
+      event: "download",
+    });
+  });
+
+  test("does not call ingest on upload", async () => {
+    const ingest = vi.fn().mockResolvedValue(undefined);
+    const env = makeEnv({ LFS_ADMIN: { ingest } });
+    const res = await app.request(
+      "http://worker/lfs/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "upload",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
+      },
+      env,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+    expect(ingest).not.toHaveBeenCalled();
+  });
+
+  test("does not call ingest on empty download", async () => {
+    const ingest = vi.fn().mockResolvedValue(undefined);
+    const env = makeEnv({ LFS_ADMIN: { ingest } });
+    const res = await app.request(
+      "http://worker/lfs/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({ operation: "download", objects: [] }),
+      },
+      env,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+    expect(ingest).not.toHaveBeenCalled();
+  });
+
+  test("succeeds when LFS_ADMIN is absent", async () => {
+    const res = await app.request(
+      "http://worker/lfs/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
+      },
+      makeEnv(),
+      execCtx,
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("succeeds when ingest throws", async () => {
+    const ingest = vi.fn().mockRejectedValue(new Error("boom"));
+    const env = makeEnv({ LFS_ADMIN: { ingest } });
+    const res = await app.request(
+      "http://worker/lfs/alice/repo/objects/batch",
+      {
+        method: "POST",
+        headers: LFS_HEADERS,
+        body: JSON.stringify({
+          operation: "download",
+          objects: [{ oid: "abc123", size: 10 }],
+        }),
+      },
+      env,
+      execCtx,
+    );
+    expect(res.status).toBe(200);
   });
 });

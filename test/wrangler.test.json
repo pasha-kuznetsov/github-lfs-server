@@ -1,0 +1,14 @@
+{
+  "main": "./main.ts",
+  "observability": null,
+  "upload_source_maps": null,
+  "secrets": null,
+  "compatibility_flags": ["nodejs_compat", "experimental"],
+  "vars": {
+    "S3_ACCESS_KEY_ID": "test-access-key-id",
+    "S3_SECRET_ACCESS_KEY": "test-secret-access-key",
+    "GITHUB_CLIENT_ID": "test-client-id",
+    "GITHUB_CLIENT_SECRET": "test-client-secret",
+    "LOGIN_SECRET": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}
