@@ -33,6 +33,14 @@
       "renamed_classes": [{ "from": "RepoLocks", "to": "Locks" }],
     },
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "OBJECT_EVENTS",
+        "queue": "lfs-object-events",
+      },
+    ],
+  },
   "vars": {
     "S3_ENDPOINT": "https://account-id.r2.cloudflarestorage.com",
     "S3_ACCESS_KEY_ID": "test-access-key-id",

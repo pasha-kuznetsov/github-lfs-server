@@ -2,8 +2,11 @@ import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
 import assert from "assert";
 
+import type { ObjectEvent } from "@git-lfs-hub/lib/contracts";
+
 import type { AppEnv } from "../app";
 import { batchRequestSchema, verifyRequestSchema } from "./_schema";
+
 
 // -----------------------------------------------------------------------------
 // https://github.com/git-lfs/git-lfs/blob/main/docs/api/batch.md
@@ -55,6 +58,21 @@ objectsApi.post(
       }),
     );
 
+    const messages = results
+      .filter((r) => !("error" in r))
+      .map((r) => ({
+        body: {
+          owner,
+          repo,
+          oid: r.oid,
+          size: r.size,
+          operation,
+        } satisfies ObjectEvent,
+      }));
+    if (messages.length > 0) {
+      c.executionCtx.waitUntil(c.env.OBJECT_EVENTS.sendBatch(messages));
+    }
+
     return c.json({
       transfer: "basic",
       hash_algo: "sha256",
@@ -79,6 +97,16 @@ objectsApi.post(
 
     const info = await c.get("objects").verifyObject(key, body.size);
     if ("message" in info) return c.json({ message: info.message }, 422);
+
+    c.executionCtx.waitUntil(
+      c.env.OBJECT_EVENTS.send({
+        owner,
+        repo,
+        oid: body.oid,
+        size: body.size,
+        operation: "verify",
+      } satisfies ObjectEvent),
+    );
 
     return c.json({});
   },

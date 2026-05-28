@@ -39,6 +39,14 @@
       "new_sqlite_classes": ["Locks"],
     },
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "OBJECT_EVENTS",
+        "queue": "lfs-object-events",
+      },
+    ],
+  },
   "vars": {
     "S3_ENDPOINT": "{{s3.endpoint}}",
     "S3_BUCKET_NAME": "{{s3.bucket}}",
